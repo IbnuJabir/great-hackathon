@@ -1,6 +1,13 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
+import { trpc } from "@/trpc/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Home() {
+  const healthQuery = trpc.health.useQuery();
+  const { user, isAuthenticated, signOut } = useAuth();
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
@@ -12,18 +19,77 @@ export default function Home() {
           height={38}
           priority
         />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+        <div className="font-mono text-sm/6 space-y-4">
+          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+            <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">🚀 Full Stack Setup Complete!</h3>
+            <div className="space-y-2">
+              <div>
+                <span className="text-green-600 dark:text-green-400">Health Check: </span>
+                {healthQuery.isLoading ? (
+                  <span className="text-gray-500">Loading...</span>
+                ) : healthQuery.error ? (
+                  <span className="text-red-500">Error: {healthQuery.error.message}</span>
+                ) : (
+                  <span className="text-green-700 dark:text-green-300">
+                    {healthQuery.data?.status} - {healthQuery.data?.message}
+                  </span>
+                )}
+              </div>
+              <div>
+                <span className="text-green-600 dark:text-green-400">Auth Status: </span>
+                <span className="text-green-700 dark:text-green-300">
+                  {isAuthenticated ? `Logged in as ${user?.name}` : "Not authenticated"}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {!isAuthenticated ? (
+              <div className="flex gap-4 justify-center sm:justify-start">
+                <Link
+                  href="/login"
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            ) : (
+              <div className="flex gap-4 justify-center sm:justify-start">
+                <Link
+                  href="/dashboard"
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Go to Dashboard
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+
+          <ol className="list-inside list-decimal text-center sm:text-left">
+            <li className="mb-2 tracking-[-.01em]">
+              ✅ tRPC + Next.js + TypeScript
+            </li>
+            <li className="mb-2 tracking-[-.01em]">
+              ✅ Better Auth + PostgreSQL + Prisma
+            </li>
+            <li className="tracking-[-.01em]">
+              ✅ Email/Password + Google OAuth ready
+            </li>
+          </ol>
+        </div>
 
         <div className="flex gap-4 items-center flex-col sm:flex-row">
           <a
