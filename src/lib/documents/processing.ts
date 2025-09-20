@@ -1,13 +1,38 @@
-import pdfParse from "pdf-parse";
+import AWS from "aws-sdk";
 import { downloadFileFromS3 } from "../aws/s3";
 import { generateEmbedding } from "../aws/bedrock";
 import { chunkText } from "./chunking";
 import { prisma } from "../prisma";
 
+// Configure Textract
+const textract = new AWS.Textract({
+  region: process.env.AWS_REGION || "us-east-1",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  sessionToken: process.env.AWS_SESSION_TOKEN,
+});
+
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    const data = await pdfParse(buffer);
-    return data.text;
+    const params = {
+      Document: {
+        Bytes: buffer,
+      },
+    };
+
+    const response = await textract.detectDocumentText(params).promise();
+
+    if (!response.Blocks) {
+      throw new Error("No text found in document");
+    }
+
+    // Extract text from Textract blocks
+    const textBlocks = response.Blocks.filter(block => block.BlockType === "LINE")
+      .map(block => block.Text)
+      .filter(text => text)
+      .join("\n");
+
+    return textBlocks;
   } catch (error) {
     console.error("Error extracting text from PDF:", error);
     throw new Error("Failed to extract text from PDF");

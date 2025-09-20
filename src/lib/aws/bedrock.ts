@@ -1,12 +1,14 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import AWS from "aws-sdk";
 
-const client = new BedrockRuntimeClient({
+// Configure AWS SDK v2 for Bedrock
+AWS.config.update({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  sessionToken: process.env.AWS_SESSION_TOKEN,
 });
+
+const bedrock = new AWS.BedrockRuntime();
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const modelId = process.env.BEDROCK_EMBEDDING_MODEL || "amazon.titan-embed-text-v2:0";
@@ -16,15 +18,15 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   };
 
   try {
-    const command = new InvokeModelCommand({
+    const params = {
       modelId,
       body: JSON.stringify(payload),
       contentType: "application/json",
       accept: "application/json",
-    });
+    };
 
-    const response = await client.send(command);
-    const result = JSON.parse(new TextDecoder().decode(response.body));
+    const response = await bedrock.invokeModel(params).promise();
+    const result = JSON.parse(response.body.toString());
 
     return result.embedding;
   } catch (error) {
@@ -54,15 +56,15 @@ Assistant:`;
       temperature: 0.1,
     };
 
-    const command = new InvokeModelCommand({
+    const params = {
       modelId,
       body: JSON.stringify(payload),
       contentType: "application/json",
       accept: "application/json",
-    });
+    };
 
-    const response = await client.send(command);
-    const result = JSON.parse(new TextDecoder().decode(response.body));
+    const response = await bedrock.invokeModel(params).promise();
+    const result = JSON.parse(response.body.toString());
 
     return result.completion || result.generated_text || "";
   } catch (error) {

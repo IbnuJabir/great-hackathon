@@ -25,13 +25,31 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
     fetchDocuments();
   }, [refreshTrigger]);
 
+  // Auto-refresh every 5 seconds if there are processing documents
+  useEffect(() => {
+    const hasProcessingDocs = documents.some(doc => !doc.isProcessed);
+
+    if (hasProcessingDocs) {
+      const interval = setInterval(fetchDocuments, 5000); // 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [documents]);
+
   const fetchDocuments = async () => {
     try {
-      // This would be a real API call to get user documents
-      // For now, we'll simulate it
-      setLoading(false);
+      setLoading(true);
+      const response = await fetch("/api/documents/list");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch documents");
+      }
+
+      const data = await response.json();
+      setDocuments(data.documents || []);
     } catch (error) {
       console.error("Error fetching documents:", error);
+      setDocuments([]);
+    } finally {
       setLoading(false);
     }
   };

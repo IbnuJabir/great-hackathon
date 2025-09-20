@@ -73,13 +73,20 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
+        { error: "Invalid request data", details: error.issues },
         { status: 400 }
       );
     }
 
+    // Add more specific error details for debugging
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Detailed error:", errorMessage);
+
     return NextResponse.json(
-      { error: "Failed to create upload URL" },
+      {
+        error: "Failed to create upload URL",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }

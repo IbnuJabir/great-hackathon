@@ -1,13 +1,14 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import AWS from "aws-sdk";
 
-const client = new S3Client({
+// Configure AWS SDK v2
+AWS.config.update({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  sessionToken: process.env.AWS_SESSION_TOKEN,
 });
+
+const s3 = new AWS.S3();
 
 const BUCKET = process.env.S3_BUCKET!;
 const UPLOAD_PREFIX = process.env.S3_UPLOAD_PREFIX || "uploads/";
@@ -16,39 +17,33 @@ export async function generatePresignedUploadUrl(
   key: string,
   contentType: string
 ): Promise<string> {
-  const command = new PutObjectCommand({
+  const params = {
     Bucket: BUCKET,
     Key: `${UPLOAD_PREFIX}${key}`,
     ContentType: contentType,
-  });
+    Expires: 3600, // 1 hour
+  };
 
-  return getSignedUrl(client, command, { expiresIn: 3600 }); // 1 hour
+  const url = s3.getSignedUrl("putObject", params);
+  console.log("Generated presigned URL:", url);
+
+  return url;
 }
 
 export async function downloadFileFromS3(key: string): Promise<Buffer> {
   try {
-    const command = new GetObjectCommand({
+    const params = {
       Bucket: BUCKET,
       Key: key,
-    });
+    };
 
-    const response = await client.send(command);
+    const response = await s3.getObject(params).promise();
 
     if (!response.Body) {
       throw new Error("No file content received");
     }
 
-    // Convert ReadableStream to Buffer
-    const chunks: Uint8Array[] = [];
-    const reader = response.Body.transformToWebStream().getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-
-    return Buffer.concat(chunks);
+    return response.Body as Buffer;
   } catch (error) {
     console.error("Error downloading file from S3:", error);
     throw new Error("Failed to download file");

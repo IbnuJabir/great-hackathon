@@ -1,7 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import { UploadZone } from "@/components/documents/upload-zone";
 import { DocumentList } from "@/components/documents/document-list";
 
 export default function DocumentsPage() {
+  const [refreshTrigger, setRefreshTrigger] = useState<string>("");
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -17,14 +21,14 @@ export default function DocumentsPage() {
           <UploadZone
             onUploadComplete={(documentId) => {
               // Trigger refresh of document list
-              window.location.reload();
+              setRefreshTrigger(documentId);
             }}
           />
         </div>
 
         <div>
           <h2 className="text-xl font-semibold mb-4">Your Documents</h2>
-          <DocumentList />
+          <DocumentList refreshTrigger={refreshTrigger} />
         </div>
       </div>
     </div>
