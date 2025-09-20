@@ -16,8 +16,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts  Account[]
+  sessions  Session[]
+  documents Document[]
 
   @@map("users")
 }
@@ -68,4 +69,32 @@ model Verification {
 
   @@unique([identifier, value])
   @@map("verifications")
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  title     String
+  s3Key     String   @unique
+  uploaderId String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  chunks   DocumentChunk[]
+
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id         String   @id @default(cuid())
+  documentId String
+  chunkText  String
+  embedding  String?  // Will store vector as string representation
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_chunks")
 }
