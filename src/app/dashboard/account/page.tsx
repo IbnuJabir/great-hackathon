@@ -276,34 +276,6 @@ export default function AccountPage() {
             </Card>
 
             {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Manage your account settings and security.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button variant="outline" className="justify-start h-auto py-4 px-4">
-                    <div className="text-left">
-                      <div className="font-medium">Change Password</div>
-                      <div className="text-sm text-muted-foreground">Update your account password</div>
-                    </div>
-                  </Button>
-
-                  <Button variant="outline" className="justify-start h-auto py-4 px-4">
-                    <div className="text-left">
-                      <div className="font-medium">Account Preferences</div>
-                      <div className="text-sm text-muted-foreground">Manage your preferences</div>
-                    </div>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

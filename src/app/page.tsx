@@ -2,177 +2,372 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { trpc } from "@/trpc/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ModeToggle } from "@/components/ui/theme-icon";
 import { useAuth } from "@/hooks/use-auth";
+import logo from '@/assets/Chatbot_Logo_No_circule.png';
+import { FileText, MessageSquare, Zap, Shield, Clock, CheckCircle, ArrowRight, Upload, Brain, VerifiedIcon } from "lucide-react";
 
 export default function Home() {
-  const healthQuery = trpc.health.useQuery();
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <div className="font-mono text-sm/6 space-y-4">
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-            <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-              🚀 Full Stack Setup Complete!
-            </h3>
-            <div className="space-y-2">
-              <div>
-                <span className="text-green-600 dark:text-green-400">
-                  Health Check:{" "}
-                </span>
-                {healthQuery.isLoading ? (
-                  <span className="text-gray-500">Loading...</span>
-                ) : healthQuery.error ? (
-                  <span className="text-red-500">
-                    Error: {healthQuery.error.message}
-                  </span>
-                ) : (
-                  <span className="text-green-700 dark:text-green-300">
-                    {healthQuery.data?.status} - {healthQuery.data?.message}
-                  </span>
-                )}
-              </div>
-              <div>
-                <span className="text-green-600 dark:text-green-400">
-                  Auth Status:{" "}
-                </span>
-                <span className="text-green-700 dark:text-green-300">
-                  {isAuthenticated
-                    ? `Logged in as ${user?.name}`
-                    : "Not authenticated"}
-                </span>
-              </div>
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center gap-3">
+              <Image
+                src={logo}
+                alt="DocChat Logo"
+                width={32}
+                height={32}
+                className="rounded"
+              />
+              <span className="text-xl font-bold">DocChat</span>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <ModeToggle />
+              {!isAuthenticated ? (
+                <div className="flex gap-2">
+                  <Button variant="ghost" asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/signup">Get Started</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="outline" asChild>
+                    <Link href="/dashboard">Dashboard</Link>
+                  </Button>
+                  <Button variant="ghost" onClick={signOut}>
+                    Sign Out
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
+        </div>
+      </nav>
 
-          <div className="space-y-3">
+      {/* Hero Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto text-center">
+          <Badge variant="secondary" className="mb-4">
+            AI-Powered Document Search
+          </Badge>
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-6">
+            Stop Hunting Through
+            <span className="text-primary"> Manuals</span>
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Upload your technical documents and get instant, trustworthy answers with source citations.
+            Built for manufacturing teams who need information fast.
+          </p>
+
+          <div className="flex gap-4 justify-center flex-col sm:flex-row">
             {!isAuthenticated ? (
-              <div className="flex gap-4 justify-center sm:justify-start">
-                <Link
-                  href="/login"
-                  className="bg-primary text-forgrournd px-6 py-2 rounded-lg transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="bg-foreground text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Sign Up
-                </Link>
-              </div>
+              <>
+                <Button size="lg" asChild>
+                  <Link href="/signup">
+                    Start Free Trial
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <Link href="/login">Sign In</Link>
+                </Button>
+              </>
             ) : (
-              <div className="flex gap-4 justify-center sm:justify-start">
-                <Link
-                  href="/dashboard"
-                  className="bg-secondary text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Go to Dashboard
+              <Button size="lg" asChild>
+                <Link href="/dashboard/chat">
+                  Start Chatting
+                  <MessageSquare className="ml-2 h-4 w-4" />
                 </Link>
-                <button
-                  onClick={signOut}
-                  className="bg-primary text-forgrournd px-6 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
+              </Button>
             )}
           </div>
 
-          <ol className="list-inside list-decimal text-center sm:text-left">
-            <li className="mb-2 tracking-[-.01em]">
-              ✅ tRPC + Next.js + TypeScript
-            </li>
-            <li className="mb-2 tracking-[-.01em]">
-              ✅ Better Auth + PostgreSQL + Prisma
-            </li>
-            <li className="tracking-[-.01em]">
-              ✅ Email/Password + Google OAuth ready
-            </li>
-          </ol>
+          <div className="mt-12 flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 blur-xl"></div>
+              <Card className="relative bg-background/80 backdrop-blur">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>No setup required</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>Source citations</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>Secure & private</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Problem/Solution Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/50">
+        <div className="container mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold mb-6">The Problem</h2>
+              <div className="space-y-4 text-muted-foreground">
+                <p className="text-lg">
+                  Manufacturing technicians waste <strong className="text-foreground">hours every day</strong>
+                  hunting through massive technical manuals to find the right information.
+                </p>
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
+                    <span>Time lost searching through hundreds of pages</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
+                    <span>Difficulty finding relevant sections quickly</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
+                    <span>Uncertainty about information accuracy</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-3xl font-bold mb-6">The Solution</h2>
+              <div className="space-y-4 text-muted-foreground">
+                <p className="text-lg">
+                  <strong className="text-foreground">DocChat</strong> provides instant,
+                  conversational access to your technical documentation with trustworthy source citations.
+                </p>
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
+                    <span>Ask questions in natural language</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
+                    <span>Get answers with source citations</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-1 flex-shrink-0" />
+                    <span>Verify information with direct links</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Powerful Features</h2>
+            <p className="text-xl text-muted-foreground">
+              Everything you need to make your technical documentation instantly searchable
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <Upload className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Easy Document Upload</CardTitle>
+                <CardDescription>
+                  Drag and drop PDFs, text files, and scanned documents. We handle the rest.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <Brain className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>AI-Powered Search</CardTitle>
+                <CardDescription>
+                  Ask questions in natural language and get precise answers using advanced semantic search.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <VerifiedIcon className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Source Citations</CardTitle>
+                <CardDescription>
+                  Every answer includes source snippets and direct links so you can verify and trust the information.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <FileText className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Multiple Formats</CardTitle>
+                <CardDescription>
+                  Support for text PDFs, scanned documents with OCR, and plain text files.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <Zap className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Lightning Fast</CardTitle>
+                <CardDescription>
+                  Get answers in seconds, not hours. Our vector search technology finds relevant information instantly.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <Shield className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Secure & Private</CardTitle>
+                <CardDescription>
+                  Your documents are encrypted and secure. User-scoped access ensures data privacy.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary/5">
+        <div className="container mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Workflow?</h2>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Join manufacturing teams who have already reduced manual search time by 90%.
+          </p>
+
+          {!isAuthenticated ? (
+            <div className="flex gap-4 justify-center flex-col sm:flex-row">
+              <Button size="lg" asChild>
+                <Link href="/signup">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+          ) : (
+            <Button size="lg" asChild>
+              <Link href="/dashboard">
+                Go to Dashboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t py-12 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div className="col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <Image
+                  src={logo}
+                  alt="DocChat Logo"
+                  width={24}
+                  height={24}
+                  className="rounded"
+                />
+                <span className="text-lg font-bold">DocChat</span>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                AI-powered document search for manufacturing teams. Get instant answers from your technical manuals.
+              </p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Built with</span>
+                <Badge variant="outline">Next.js</Badge>
+                <Badge variant="outline">AWS Bedrock</Badge>
+                <Badge variant="outline">PostgreSQL</Badge>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-4">Product</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/dashboard" className="hover:text-foreground transition-colors">
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/documents" className="hover:text-foreground transition-colors">
+                    Documents
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/chat" className="hover:text-foreground transition-colors">
+                    Chat
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-4">Account</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {!isAuthenticated ? (
+                  <>
+                    <li>
+                      <Link href="/login" className="hover:text-foreground transition-colors">
+                        Sign In
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/signup" className="hover:text-foreground transition-colors">
+                        Sign Up
+                      </Link>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <Link href="/dashboard/account" className="hover:text-foreground transition-colors">
+                        Account Settings
+                      </Link>
+                    </li>
+                    <li>
+                      <button
+                        onClick={signOut}
+                        className="hover:text-foreground transition-colors text-left"
+                      >
+                        Sign Out
+                      </button>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
+            <p>&copy; 2024 DocChat. Built for manufacturing excellence.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );
