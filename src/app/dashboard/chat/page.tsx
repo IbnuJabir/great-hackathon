@@ -1,47 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageList, Message } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { FileText, Sparkles, Moon } from "lucide-react";
-import Link from "next/link";
+import { ChatSidebar } from "@/components/chat/chat-sidebar";
+import { ConversationStarters } from "@/components/chat/conversation-starters";
+import { Sparkles } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { ModeToggle } from "@/components/ui/theme-icon";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  // tRPC mutation for chat queries
+  // tRPC mutations and queries
   const chatQuery = trpc.chat.query.useMutation();
+  const createSession = trpc.chatHistory.createSession.useMutation();
+  const saveMessage = trpc.chatHistory.saveMessage.useMutation();
+  const { data: sessionData } = trpc.chatHistory.getSession.useQuery(
+    { sessionId: currentSessionId! },
+    { enabled: !!currentSessionId }
+  );
 
-  // Conversation starters
-  const conversationStarters = [
-    "What's in my documents?",
-    "Summarize the key points from my files",
-    "Help me find specific information",
-    "Explain technical concepts from my documents"
-  ];
+  // Load session messages when session changes
+  useEffect(() => {
+    if (sessionData) {
+      setMessages(sessionData.messages);
+    }
+  }, [sessionData]);
+
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+    setMessages([]);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  };
 
   const handleSendMessage = async (content: string) => {
-    // Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      type: "user",
-      content,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsTyping(true);
-
     try {
+      // Create session if none exists
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        const newSession = await createSession.mutateAsync({});
+        sessionId = newSession.id;
+        setCurrentSessionId(sessionId);
+      }
+
+      // Add user message to UI
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        type: "user",
+        content,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setIsTyping(true);
+
+      // Save user message to database
+      await saveMessage.mutateAsync({
+        sessionId,
+        role: "USER",
+        content,
+      });
+
       // Send query via tRPC
       const data = await chatQuery.mutateAsync({ question: content });
 
-      // Add assistant message
+      // Add assistant message to UI
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         type: "assistant",
@@ -51,6 +80,14 @@ export default function ChatPage() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Save assistant message to database
+      await saveMessage.mutateAsync({
+        sessionId,
+        role: "ASSISTANT",
+        content: data.answer,
+        sources: data.sources,
+      });
 
     } catch (error) {
       console.error("Error sending message:", error);
@@ -69,40 +106,14 @@ export default function ChatPage() {
     }
   };
 
-  const handleQuickAction = (prompt: string) => {
-    handleSendMessage(prompt);
-  };
-
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-64 border-r bg-muted/10 flex flex-col">
-        <div className="p-4">
-          <Link href="/dashboard/documents">
-            <Button variant="outline" className="w-full justify-start gap-2">
-              <FileText className="h-4 w-4" />
-              Documents
-            </Button>
-          </Link>
-        </div>
-
-        <Separator className="mx-4" />
-
-        <div className="flex-1 p-4">
-          <div className="text-sm font-medium text-muted-foreground mb-3">Conversation starters</div>
-          <div className="space-y-2">
-            {conversationStarters.map((prompt, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleQuickAction(prompt)}
-                className="w-full text-left text-sm p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Chat Sidebar */}
+      <ChatSidebar
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewChat={handleNewChat}
+      />
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
@@ -119,9 +130,13 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Messages */}
+        {/* Messages or Conversation Starters */}
         <div className="flex-1 overflow-y-auto">
-          <MessageList messages={messages} isTyping={isTyping} />
+          {messages.length === 0 ? (
+            <ConversationStarters onStarterClick={handleSendMessage} />
+          ) : (
+            <MessageList messages={messages} isTyping={isTyping} />
+          )}
         </div>
 
         {/* Input */}
