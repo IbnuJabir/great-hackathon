@@ -1,6 +1,18 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend client with defensive handling
+let resend: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resend) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    resend = new Resend(apiKey);
+  }
+  return resend;
+}
 
 export async function sendEmail({
   to,
@@ -12,7 +24,8 @@ export async function sendEmail({
   html: string;
 }) {
   try {
-    const { data, error } = await resend.emails.send({
+    const resendClient = getResendClient();
+    const { data, error } = await resendClient.emails.send({
       from: process.env.EMAIL_FROM || 'noreply@yourdomain.com',
       to,
       subject,
