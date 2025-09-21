@@ -1,4 +1,3 @@
-import { PDFDocument } from "pdf-lib";
 import { downloadFileFromS3 } from "./s3";
 import { generateEmbedding } from "./bedrock";
 import { prisma } from "@/lib/prisma";
@@ -6,39 +5,31 @@ import { chunkText } from "@/lib/documents/chunking";
 
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    console.log("Starting PDF text extraction with pdf-lib");
+    console.log("Starting PDF text extraction with pdf-parse");
 
-    // Parse PDF with pdf-lib
-    const pdfDoc = await PDFDocument.load(buffer);
-    const pages = pdfDoc.getPages();
+    // Use dynamic import to avoid loading test files on module initialization
+    const pdfParse = (await import("pdf-parse")).default;
 
-    let fullText = "";
+    // Use pdf-parse for proper text extraction
+    const pdfData = await pdfParse(buffer);
 
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      // Note: pdf-lib doesn't have built-in text extraction
-      // This is a limitation - we'll need to use a different approach
-      console.log(`Processing page ${i + 1}/${pages.length}`);
+    const fullText = pdfData.text.trim();
 
-      // For now, we'll return a placeholder until we implement proper text extraction
-      fullText += `[Page ${i + 1} content - text extraction not implemented]\n`;
-    }
-
-    if (!fullText || fullText.trim().length === 0) {
+    if (!fullText || fullText.length === 0) {
       throw new Error("No readable text found in PDF");
     }
 
-    console.log(`Successfully processed ${pages.length} pages`);
+    console.log(`Successfully extracted ${fullText.length} characters from ${pdfData.numpages} pages`);
     return fullText;
   } catch (error) {
     console.error("Error extracting text from PDF:", error);
 
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes("Invalid PDF")) {
+      if (error.message.includes("Invalid PDF") || error.message.includes("corrupted")) {
         throw new Error("Invalid or corrupted PDF document.");
       }
-      if (error.message.includes("Password")) {
+      if (error.message.includes("Password") || error.message.includes("encrypted")) {
         throw new Error("Password-protected PDFs are not supported.");
       }
     }

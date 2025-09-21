@@ -36,24 +36,25 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 export async function generateAnswer(question: string, context: string): Promise<string> {
-  const modelId = process.env.BEDROCK_LLM_MODEL || "anthropic.claude-instant-v1:0";
+  const modelId = process.env.BEDROCK_LLM_MODEL || "mistral.mistral-7b-instruct-v0:2";
 
-  const prompt = `Human: You are a helpful assistant for manufacturing technicians. Answer the question based on the provided context from technical manuals. If you cannot answer from the context, say so clearly.
+  const prompt = `<s>[INST] You are a helpful assistant for manufacturing technicians. Answer the question based on the provided context from technical manuals. If you cannot answer from the context, say so clearly.
 
 Context:
 ${context}
 
 Question: ${question}
 
-Please provide a clear, accurate answer with specific references to the source material when possible.
-
-Assistant:`;
+Please provide a clear, accurate answer with specific references to the source material when possible. [/INST]`;
 
   try {
+    // Mistral models use a different payload structure
     const payload = {
       prompt,
-      max_tokens_to_sample: 1000,
+      max_tokens: 1000,
       temperature: 0.1,
+      top_p: 0.9,
+      top_k: 50
     };
 
     const command = new InvokeModelCommand({
@@ -65,6 +66,11 @@ Assistant:`;
 
     const response = await bedrock.send(command);
     const result = JSON.parse(new TextDecoder().decode(response.body));
+
+    // Mistral returns the response in 'outputs' array
+    if (result.outputs && result.outputs.length > 0) {
+      return result.outputs[0].text || "";
+    }
 
     return result.completion || result.generated_text || "";
   } catch (error) {
