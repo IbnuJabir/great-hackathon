@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/dashboard"];
+// Routes that require authentication
+const protectedRoutes = [
+  "/dashboard",          // Main dashboard and all sub-routes
+  "/dashboard/chat",     // Chat interface
+  "/dashboard/documents", // Document management
+  "/dashboard/account",  // User account settings
+];
+// Routes that redirect to dashboard when authenticated
 const authRoutes = ["/login", "/signup"];
 
 export function middleware(request: NextRequest) {
@@ -31,5 +38,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",     // All dashboard routes
+    "/login",                // Login page
+    "/signup",               // Signup page
+  ],
 };

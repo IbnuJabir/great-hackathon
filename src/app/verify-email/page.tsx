@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { authClient, sendVerificationEmail } from "@/lib/auth-client";
 import Link from "next/link";
 import { toast } from "sonner";
 
-export default function VerifyEmail() {
+function VerifyEmailContent() {
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -263,5 +263,29 @@ export default function VerifyEmail() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-muted-foreground mb-4" />
+          <CardTitle className="text-xl">Loading</CardTitle>
+          <CardDescription>
+            Please wait...
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+}
+
+export default function VerifyEmail() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
