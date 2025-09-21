@@ -6,19 +6,18 @@ applications:
           commands:
             - echo "Installing dependencies with pnpm..."
             - npm install -g pnpm@10.12.1
-            - pnpm install
+            - echo "Clearing any existing cache..."
+            - rm -rf node_modules/.cache
+            - rm -rf .next
+            - pnpm install --no-cache
         build:
           commands:
             - echo "Generating Prisma Client..."
             - npx prisma generate
-            - echo "Building Next.js application..."
+            - echo "Building Next.js application from scratch..."
             - pnpm run build
       artifacts:
         baseDirectory: .next
         files:
           - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-          - .next/cache/**/*
     appRoot: /
