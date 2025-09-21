@@ -6,13 +6,13 @@ import Link from "next/link";
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold">Create your account</h2>
-          <p className="mt-2 text-gray-600">
+          <h2 className="text-3xl font-bold text-foreground">Create your account</h2>
+          <p className="mt-2 text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-blue-500 hover:text-blue-600">
+            <Link href="/login" className="text-primary hover:text-primary/80">
               Sign in
             </Link>
           </p>

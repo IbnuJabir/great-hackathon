@@ -7,7 +7,18 @@ import { trpc } from "@/trpc/client";
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return "";
+
+  // Production environment URLs
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+
+  // AWS Amplify detection
+  if (process.env.AWS_APP_ID || process.env.AWS_BRANCH) {
+    // If we're in Amplify, use the current host
+    return "";
+  }
+
+  // Development fallback
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
