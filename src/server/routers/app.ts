@@ -4,12 +4,14 @@ import { authRouter } from "./auth";
 import { documentsRouter } from "./documents";
 import { chatRouter } from "./chat";
 import { chatHistoryRouter } from "./chat-history";
+import { voiceRouter } from "./voice";
 
 export const appRouter = router({
   auth: authRouter,
   documents: documentsRouter,
   chat: chatRouter,
   chatHistory: chatHistoryRouter,
+  voice: voiceRouter,
   
   health: publicProcedure.query(() => {
     return {

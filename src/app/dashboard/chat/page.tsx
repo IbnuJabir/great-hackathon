@@ -8,7 +8,8 @@ import { ConversationStarters } from "@/components/chat/conversation-starters";
 import { trpc } from "@/trpc/client";
 import { ModeToggle } from "@/components/ui/theme-icon";
 import Image from "next/image";
-import logo from '@/assets/Chatbot_Logo_No_circule.png'
+import logo from '@/assets/Chatbot_Logo_No_circule.png';
+import { toast } from "sonner";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,6 +39,11 @@ export default function ChatPage() {
 
   const handleSessionSelect = (sessionId: string) => {
     setCurrentSessionId(sessionId);
+  };
+
+  const handleVoiceError = (error: string) => {
+    console.error("Voice error:", error);
+    toast.error(error);
   };
 
   const handleSendMessage = async (content: string) => {
@@ -150,6 +156,7 @@ export default function ChatPage() {
         <MessageInput
           onSendMessage={handleSendMessage}
           disabled={isTyping}
+          onVoiceError={handleVoiceError}
         />
       </div>
     </div>
