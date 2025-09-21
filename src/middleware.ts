@@ -13,12 +13,6 @@ const authRoutes = ["/login", "/signup"];
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Debug: Log all cookies to find the correct session cookie name
-  if (process.env.NODE_ENV === "development") {
-    console.log("🍪 All cookies:", Object.fromEntries(request.cookies.getAll().map(c => [c.name, c.value])));
-    console.log("📍 Pathname:", pathname);
-  }
-
   // Check for Better Auth session cookie (common naming patterns)
   const sessionToken =
     request.cookies.get("better-auth.session_token") ||
@@ -30,34 +24,19 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = !!sessionToken?.value;
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("🔐 Session token found:", !!sessionToken?.value, "Cookie name:", sessionToken?.name);
-    console.log("✅ Is authenticated:", isAuthenticated);
-  }
-
   // Check if current path is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("🛡️ Is protected route:", isProtectedRoute);
-    console.log("🔑 Is auth route:", isAuthRoute);
-  }
 
   if (isProtectedRoute) {
     if (!isAuthenticated) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("🚫 Redirecting to login - not authenticated on protected route");
-      }
       return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
   if (isAuthRoute) {
     if (isAuthenticated) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("✅ Redirecting to dashboard - already authenticated on auth route");
-      }
       return NextResponse.redirect(new URL("/dashboard/chat", request.url));
     }
   }
