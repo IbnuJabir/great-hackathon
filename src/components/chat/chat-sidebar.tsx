@@ -23,14 +23,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface ChatSidebarProps {
   currentSessionId?: string | null;
-  onSessionSelect: (sessionId: string) => void;
-  onNewChat: () => void;
 }
 
-export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: ChatSidebarProps) {
+export function ChatSidebar({ currentSessionId }: ChatSidebarProps) {
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -55,7 +55,7 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
     if (confirm("Are you sure you want to delete this conversation?")) {
       await deleteSession.mutateAsync({ sessionId });
       if (currentSessionId === sessionId) {
-        onNewChat();
+        router.push('/dashboard/chat');
       }
     }
   };
@@ -97,7 +97,7 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
         <Button
           variant="ghost"
           size="icon"
-          onClick={onNewChat}
+          onClick={() => router.push('/dashboard/chat')}
           className="mb-4"
         >
           <MessageSquarePlus className="h-4 w-4" />
@@ -111,7 +111,7 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
               key={session.id}
               variant={currentSessionId === session.id ? "secondary" : "ghost"}
               size="icon"
-              onClick={() => onSessionSelect(session.id)}
+              onClick={() => router.push(`/dashboard/chat/${session.id}`)}
               className="w-full mb-1"
               title={session.title}
             >
@@ -145,7 +145,7 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
           <Button
             variant="ghost"
             size="icon"
-            onClick={onNewChat}
+            onClick={() => router.push('/dashboard/chat')}
             className="h-8 w-8"
           >
             <MessageSquarePlus className="h-4 w-4" />
@@ -196,7 +196,7 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
                     ? "bg-secondary"
                     : "hover:bg-muted/50"
                 }`}
-                onClick={() => onSessionSelect(session.id)}
+                onClick={() => router.push(`/dashboard/chat/${session.id}`)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">

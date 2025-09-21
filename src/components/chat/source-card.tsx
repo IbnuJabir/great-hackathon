@@ -61,7 +61,7 @@ export function SourceCard({ sources }: SourceCardProps) {
                 </Badge>
                 <button
                   onClick={() => handleDocumentClick(source.documentId)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                   title="Open document"
                 >
                   <ExternalLink className="h-3 w-3" />

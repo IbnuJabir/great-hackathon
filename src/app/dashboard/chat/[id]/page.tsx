@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { MessageList, Message } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
@@ -12,15 +12,36 @@ import Image from "next/image";
 import logo from '@/assets/Chatbot_Logo_No_circule.png';
 import { toast } from "sonner";
 
-export default function ChatPage() {
+export default function ChatWithIdPage() {
+  const params = useParams();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
 
-  // tRPC mutations
+  const chatId = params.id as string;
+
+  // tRPC mutations and queries
   const chatQuery = trpc.chat.query.useMutation();
   const createSession = trpc.chatHistory.createSession.useMutation();
   const saveMessage = trpc.chatHistory.saveMessage.useMutation();
+  const { data: sessionData, isLoading } = trpc.chatHistory.getSession.useQuery(
+    { sessionId: chatId },
+    { enabled: !!chatId }
+  );
+
+  // Load session messages when session data is fetched
+  useEffect(() => {
+    if (sessionData) {
+      setMessages(sessionData.messages);
+    }
+  }, [sessionData]);
+
+  // If session doesn't exist or user doesn't have access, redirect to new chat
+  useEffect(() => {
+    if (!isLoading && !sessionData && chatId) {
+      router.push('/dashboard/chat');
+    }
+  }, [sessionData, isLoading, chatId, router]);
 
 
   const handleVoiceError = (error: string) => {
@@ -30,11 +51,9 @@ export default function ChatPage() {
 
   const handleSendMessage = async (content: string) => {
     try {
-      // Create a new session and redirect to it
-      const newSession = await createSession.mutateAsync({});
-      const sessionId = newSession.id;
+      let sessionId = chatId;
 
-      // Add user message to UI temporarily
+      // Add user message to UI
       const userMessage: Message = {
         id: `user-${Date.now()}`,
         type: "user",
@@ -42,7 +61,7 @@ export default function ChatPage() {
         timestamp: new Date(),
       };
 
-      setMessages([userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
       setIsTyping(true);
 
       // Save user message to database
@@ -55,6 +74,17 @@ export default function ChatPage() {
       // Send query via tRPC
       const data = await chatQuery.mutateAsync({ question: content });
 
+      // Add assistant message to UI
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        type: "assistant",
+        content: data.answer,
+        sources: data.sources,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
       // Save assistant message to database
       await saveMessage.mutateAsync({
         sessionId: sessionId,
@@ -62,9 +92,6 @@ export default function ChatPage() {
         content: data.answer,
         sources: data.sources,
       });
-
-      // Redirect to the new chat with ID
-      router.push(`/dashboard/chat/${sessionId}`);
 
     } catch (error) {
       console.error("Error sending message:", error);
@@ -83,11 +110,27 @@ export default function ChatPage() {
     }
   };
 
+  // Show loading state while fetching session
+  if (isLoading) {
+    return (
+      <div className="flex h-screen bg-background">
+        <ChatSidebar
+          currentSessionId={chatId}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-muted-foreground">
+            Loading conversation...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-background">
       {/* Chat Sidebar */}
       <ChatSidebar
-        currentSessionId={null}
+        currentSessionId={chatId}
       />
 
       {/* Main Chat Area */}
@@ -104,6 +147,9 @@ export default function ChatPage() {
                 className="rounded"
               />
               <h1 className="text-lg font-semibold">DocChat</h1>
+              {sessionData && (
+                <span className="text-sm text-muted-foreground">- {sessionData.title}</span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <ModeToggle />
@@ -111,13 +157,9 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Messages or Conversation Starters */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto">
-          {messages.length === 0 ? (
-            <ConversationStarters onStarterClick={handleSendMessage} />
-          ) : (
-            <MessageList messages={messages} isTyping={isTyping} />
-          )}
+          <MessageList messages={messages} isTyping={isTyping} />
         </div>
 
         {/* Input */}
