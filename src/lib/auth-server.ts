@@ -8,6 +8,7 @@ import { sendEmail, emailTemplates } from "./email";
 const prisma = new PrismaClient();
 
 export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET || "your-secret-key-here-min-32-chars-long-replace-with-actual-secret",
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
