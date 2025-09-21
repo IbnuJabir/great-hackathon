@@ -2,9 +2,9 @@ import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedroc
 
 // Configure AWS SDK v3 for Bedrock to use SSO profile or default credential chain
 const bedrock = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AW_REGION || "us-east-1",
   // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
+  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
 });
 
 // Define size limits for different processing methods

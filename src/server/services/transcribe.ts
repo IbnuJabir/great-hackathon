@@ -4,15 +4,15 @@ import { randomUUID } from "crypto";
 
 // Configure AWS clients to use SSO profile or default credential chain
 const transcribeClient = new TranscribeClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AW_REGION || "us-east-1",
   // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
+  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
 });
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AW_REGION || "us-east-1",
   // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
+  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
 });
 
 interface TranscriptionResult {

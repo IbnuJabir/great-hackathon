@@ -3,9 +3,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Configure AWS SDK v3 to use SSO profile or default credential chain
 const s3 = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AW_REGION || "us-east-1",
   // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
+  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
 });
 
 const BUCKET = process.env.S3_BUCKET!;
