@@ -100,7 +100,7 @@ export const chatHistoryRouter = router({
         updatedAt: session.updatedAt,
         messages: session.messages.map(message => ({
           id: message.id,
-          role: message.role.toLowerCase() as "user" | "assistant",
+          type: message.role.toLowerCase() as "user" | "assistant",
           content: message.content,
           sources: message.sources,
           timestamp: message.createdAt,
@@ -153,7 +153,7 @@ export const chatHistoryRouter = router({
 
       return {
         id: message.id,
-        role: message.role.toLowerCase() as "user" | "assistant",
+        type: message.role.toLowerCase() as "user" | "assistant",
         content: message.content,
         sources: message.sources,
         timestamp: message.createdAt,

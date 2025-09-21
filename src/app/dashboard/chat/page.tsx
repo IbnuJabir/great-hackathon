@@ -5,9 +5,10 @@ import { MessageList, Message } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ConversationStarters } from "@/components/chat/conversation-starters";
-import { Sparkles } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { ModeToggle } from "@/components/ui/theme-icon";
+import Image from "next/image";
+import logo from '@/assets/Chatbot_Logo_No_circule.png'
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -62,7 +63,7 @@ export default function ChatPage() {
 
       // Save user message to database
       await saveMessage.mutateAsync({
-        sessionId,
+        sessionId: sessionId!,
         role: "USER",
         content,
       });
@@ -83,7 +84,7 @@ export default function ChatPage() {
 
       // Save assistant message to database
       await saveMessage.mutateAsync({
-        sessionId,
+        sessionId: sessionId!,
         role: "ASSISTANT",
         content: data.answer,
         sources: data.sources,
@@ -121,7 +122,13 @@ export default function ChatPage() {
         <div className="border-b p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
+              <Image
+                src={logo}
+                alt="DocChat Logo"
+                width={34}
+                height={34}
+                className="rounded"
+              />
               <h1 className="text-lg font-semibold">DocChat</h1>
             </div>
             <div className="flex items-center gap-2">

@@ -5,12 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileText, Loader2 } from "lucide-react";
 import { trpc } from "@/trpc/client";
-import * as pdfjs from "pdfjs-dist";
-
-// Configure PDF.js worker
-if (typeof window !== "undefined") {
-  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-}
 
 interface UploadZoneProps {
   onUploadComplete: (documentId: string) => void;
@@ -26,10 +20,18 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const getUploadUrl = trpc.documents.getUploadUrl.useMutation();
   const processDocument = trpc.documents.processDocument.useMutation();
 
-  // Extract text from PDF using PDF.js
+  // Extract text from PDF using PDF.js (dynamic import)
   const extractPdfText = useCallback(async (file: File): Promise<string> => {
     try {
       setUploadProgress("Extracting text from PDF...");
+
+      // Dynamic import to avoid SSR issues
+      const pdfjs = await import("pdfjs-dist");
+
+      // Configure worker on client side only
+      if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      }
 
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
@@ -40,7 +42,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-          .filter((item): item is any => "str" in item)
+          .filter((item): item is { str: string } => "str" in item)
           .map((item) => item.str)
           .join(" ");
 

@@ -24,7 +24,7 @@ import {
 import Link from "next/link";
 
 interface ChatSidebarProps {
-  currentSessionId?: string;
+  currentSessionId?: string | null;
   onSessionSelect: (sessionId: string) => void;
   onNewChat: () => void;
 }

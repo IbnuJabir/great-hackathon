@@ -69,7 +69,7 @@ export function MessageList({ messages, isTyping }: MessageListProps) {
                     {message.type === "user" ? "You" : "DocChat"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
 
