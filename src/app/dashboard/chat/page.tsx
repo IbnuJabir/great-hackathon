@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { MessageList, Message } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, ArrowLeft } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
 
@@ -16,44 +16,12 @@ export default function ChatPage() {
   // tRPC mutation for chat queries
   const chatQuery = trpc.chat.query.useMutation();
 
-  // Quick action prompts for manufacturing technicians
-  const quickActions = [
-    {
-      icon: "🔧",
-      title: "Troubleshooting",
-      prompts: [
-        "How do I troubleshoot error code 001?",
-        "What are the common failure points?",
-        "Diagnostic procedures for malfunction",
-      ]
-    },
-    {
-      icon: "⚙️",
-      title: "Maintenance",
-      prompts: [
-        "What is the maintenance schedule?",
-        "How do I perform routine maintenance?",
-        "Preventive maintenance checklist",
-      ]
-    },
-    {
-      icon: "📋",
-      title: "Safety",
-      prompts: [
-        "What are the safety procedures?",
-        "Emergency shutdown procedures",
-        "Personal protective equipment requirements",
-      ]
-    },
-    {
-      icon: "📖",
-      title: "Operating Procedures",
-      prompts: [
-        "How do I start up the equipment?",
-        "Normal operating procedures",
-        "Step-by-step operation guide",
-      ]
-    }
+  // Conversation starters
+  const conversationStarters = [
+    "What's in my documents?",
+    "Summarize the key points from my files",
+    "Help me find specific information",
+    "Explain technical concepts from my documents"
   ];
 
   const handleSendMessage = async (content: string) => {
@@ -105,77 +73,68 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">🏭 Manufacturing Assistant</h1>
-            <p className="text-gray-600">
-              Get instant answers from your technical manuals. Ask questions or use quick actions below.
-            </p>
-          </div>
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <div className="w-64 border-r bg-muted/10 flex flex-col">
+        <div className="p-4">
           <Link href="/dashboard/documents">
-            <Button variant="outline" className="flex items-center space-x-2">
-              <ArrowLeft className="h-4 w-4" />
-              <Upload className="h-4 w-4" />
-              <span>Manage Documents</span>
+            <Button variant="outline" className="w-full justify-start gap-2">
+              <FileText className="h-4 w-4" />
+              Documents
             </Button>
           </Link>
         </div>
+
+        <Separator className="mx-4" />
+
+        <div className="flex-1 p-4">
+          <div className="text-sm font-medium text-muted-foreground mb-3">Conversation starters</div>
+          <div className="space-y-2">
+            {conversationStarters.map((prompt, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleQuickAction(prompt)}
+                className="w-full text-left text-sm p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Quick Actions Sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="p-4">
-            <h3 className="font-semibold mb-3 text-sm text-gray-700">Quick Actions</h3>
-            <div className="space-y-3">
-              {quickActions.map((category, idx) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">{category.icon}</span>
-                    <span className="font-medium text-xs text-gray-600">{category.title}</span>
-                  </div>
-                  <div className="space-y-1">
-                    {category.prompts.map((prompt, promptIdx) => (
-                      <button
-                        key={promptIdx}
-                        onClick={() => handleQuickAction(prompt)}
-                        className="w-full text-left text-xs p-2 rounded bg-gray-50 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="border-b p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              <h1 className="text-lg font-semibold">DocChat</h1>
             </div>
-          </Card>
+            {isTyping && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
+                </div>
+                <span>Thinking...</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Chat Interface */}
-        <div className="lg:col-span-3">
-          <Card className="h-[600px] flex flex-col">
-            <div className="p-4 border-b bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <span className="text-sm font-medium">Assistant Ready</span>
-                </div>
-                {isTyping && (
-                  <div className="flex items-center space-x-1 text-sm text-gray-500">
-                    <div className="animate-pulse">Analyzing documents...</div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <MessageList messages={messages} />
-            <MessageInput
-              onSendMessage={handleSendMessage}
-              disabled={isTyping}
-            />
-          </Card>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <MessageList messages={messages} isTyping={isTyping} />
         </div>
+
+        {/* Input */}
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          disabled={isTyping}
+        />
       </div>
     </div>
   );

@@ -19,12 +19,12 @@ export function SourceCard({ sources }: SourceCardProps) {
   if (sources.length === 0) return null;
 
   return (
-    <Card className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-gray-50 border-blue-200">
-      <div className="flex items-center space-x-2 mb-3">
-        <FileText className="h-4 w-4 text-blue-600" />
-        <span className="text-sm font-medium text-gray-800">Reference Sources</span>
-        <Badge variant="default" className="text-xs bg-blue-100 text-blue-800">
-          {sources.length} manual{sources.length > 1 ? 's' : ''} referenced
+    <div className="mt-4 p-4 bg-muted/30 rounded-lg border">
+      <div className="flex items-center gap-2 mb-3">
+        <FileText className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Sources</span>
+        <Badge variant="secondary" className="text-xs">
+          {sources.length}
         </Badge>
       </div>
 
@@ -32,46 +32,37 @@ export function SourceCard({ sources }: SourceCardProps) {
         {sources.map((source, index) => (
           <div
             key={`${source.documentId}-${index}`}
-            className="bg-white rounded-lg border border-blue-200 p-3 hover:shadow-sm transition-shadow"
+            className="bg-background rounded-lg border p-3 hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
                   {index + 1}
                 </div>
-                <h4 className="text-sm font-semibold text-gray-800">
+                <h4 className="text-sm font-medium truncate">
                   {source.documentTitle}
                 </h4>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
-                  {Math.round(source.similarity * 100)}% match
+                  {Math.round(source.similarity * 100)}%
                 </Badge>
-                <button className="text-blue-500 hover:text-blue-700 transition-colors">
-                  <ExternalLink className="h-4 w-4" />
+                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                  <ExternalLink className="h-3 w-3" />
                 </button>
               </div>
             </div>
-            <div className="bg-gray-50 rounded p-2 border-l-4 border-blue-400">
-              <p className="text-sm text-gray-700 leading-relaxed">
+            <div className="bg-muted/50 rounded p-3 border-l-2 border-primary/20">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {source.chunkText.length > 200
                   ? `${source.chunkText.substring(0, 200)}...`
                   : source.chunkText
                 }
               </p>
             </div>
-            <div className="mt-2 flex items-center space-x-3 text-xs text-gray-500">
-              <span>📖 Manual Section</span>
-              <span>•</span>
-              <span>Click to view full context</span>
-            </div>
           </div>
         ))}
       </div>
-
-      <div className="mt-4 text-xs text-gray-600 bg-white rounded p-2 border border-gray-200">
-        💡 <strong>Tip:</strong> Click the source links to view the complete manual section for detailed procedures and diagrams.
-      </div>
-    </Card>
+    </div>
   );
 }
