@@ -16,7 +16,8 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
     const fullText = pdfData.text.trim();
 
     if (!fullText || fullText.length === 0) {
-      throw new Error("No readable text found in PDF");
+      console.log("No readable text found with pdf-parse, PDF might be scanned");
+      throw new Error("No readable text found in PDF - might be a scanned document requiring OCR");
     }
 
     console.log(`Successfully extracted ${fullText.length} characters from ${pdfData.numpages} pages`);
@@ -31,6 +32,9 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
       }
       if (error.message.includes("Password") || error.message.includes("encrypted")) {
         throw new Error("Password-protected PDFs are not supported.");
+      }
+      if (error.message.includes("scanned document")) {
+        throw new Error("This appears to be a scanned PDF. OCR processing is not yet implemented for server uploads.");
       }
     }
 
@@ -74,12 +78,21 @@ export async function processDocument(documentId: string) {
       console.log("Using pre-extracted text from client-side processing");
       text = metadata.extractedText;
     } else if (document.s3Key.toLowerCase().endsWith(".pdf")) {
-      console.log("Attempting server-side PDF text extraction");
+      console.log(`Attempting server-side PDF text extraction (upload method: ${metadata?.uploadMethod || 'client'})`);
       text = await extractTextFromPdf(fileBuffer);
     } else if (document.s3Key.toLowerCase().endsWith(".txt")) {
+      console.log("Processing TXT file");
       text = fileBuffer.toString("utf-8");
     } else {
       throw new Error("Unsupported file type");
+    }
+
+    // Additional validation for server-uploaded files
+    if (metadata?.uploadMethod === 'server') {
+      console.log("Processing server-uploaded file, performing additional validation");
+      if (!text || text.trim().length < 10) {
+        throw new Error("Insufficient text content extracted from server-uploaded file");
+      }
     }
 
     if (!text || text.trim().length === 0) {

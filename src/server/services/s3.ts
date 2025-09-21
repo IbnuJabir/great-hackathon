@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Configure AWS SDK v3
@@ -51,6 +51,29 @@ export async function generatePresignedDownloadUrl(key: string): Promise<string>
   } catch (error) {
     console.error("Error generating presigned download URL:", error);
     throw new Error(`Failed to generate presigned download URL: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
+export async function uploadFileToS3(
+  key: string,
+  fileBuffer: Buffer,
+  contentType: string
+): Promise<void> {
+  try {
+    console.log(`Uploading file to S3: ${BUCKET}/${UPLOAD_PREFIX}${key}`);
+
+    const command = new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: `${UPLOAD_PREFIX}${key}`,
+      Body: fileBuffer,
+      ContentType: contentType,
+    });
+
+    await s3.send(command);
+    console.log("File uploaded to S3 successfully");
+  } catch (error) {
+    console.error("Error uploading file to S3:", error);
+    throw new Error(`Failed to upload file to S3: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 

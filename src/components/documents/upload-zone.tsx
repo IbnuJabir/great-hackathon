@@ -18,7 +18,11 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   // tRPC mutations and utils
   const utils = trpc.useUtils();
   const getUploadUrl = trpc.documents.getUploadUrl.useMutation();
+  const uploadLargeFile = trpc.documents.uploadLargeFile.useMutation();
   const processDocument = trpc.documents.processDocument.useMutation();
+
+  // File size threshold for determining upload method (10MB)
+  const FILE_SIZE_THRESHOLD = 10 * 1024 * 1024;
 
   // Extract text from PDF using PDF.js (dynamic import)
   const extractPdfText = useCallback(async (file: File): Promise<string> => {
@@ -63,44 +67,120 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
     }
   }, []);
 
+  // Convert file to base64 for server upload
+  const fileToBase64 = useCallback(async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data:type/subtype;base64, prefix
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  }, []);
+
+  // Server-side upload for large files
+  const handleLargeFileUpload = useCallback(
+    async (file: File) => {
+      setUploadProgress("Converting file for server upload...");
+
+      try {
+        // Convert file to base64
+        const fileData = await fileToBase64(file);
+
+        // Upload directly to server
+        setUploadProgress("Uploading large file to server...");
+        const result = await uploadLargeFile.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileData,
+        });
+
+        return result.documentId;
+      } catch (error) {
+        console.error("Large file upload error:", error);
+        throw error;
+      }
+    },
+    [uploadLargeFile, fileToBase64]
+  );
+
+  // Client-side upload for small files (existing logic)
+  const handleSmallFileUpload = useCallback(
+    async (file: File) => {
+      let extractedText: string | undefined;
+
+      // Try client-side text extraction for PDFs
+      if (file.type === "application/pdf") {
+        try {
+          extractedText = await extractPdfText(file);
+        } catch (error) {
+          console.warn("Client-side PDF extraction failed, will use server-side fallback:", error);
+          // Continue without extracted text - server will handle it
+        }
+      }
+
+      // Get presigned upload URL via tRPC
+      setUploadProgress("Getting upload URL...");
+      const uploadData = await getUploadUrl.mutateAsync({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        extractedText,
+      });
+
+      const { documentId, uploadUrl } = uploadData;
+
+      // Upload file to S3
+      setUploadProgress("Uploading file...");
+      const s3Response = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!s3Response.ok) {
+        throw new Error("Failed to upload file to S3");
+      }
+
+      return documentId;
+    },
+    [extractPdfText, getUploadUrl]
+  );
+
   const handleFileUpload = useCallback(
     async (file: File) => {
       setIsUploading(true);
       setUploadProgress("Preparing upload...");
 
       try {
-        // Step 1: Extract text from PDF if applicable
-        let extractedText: string | undefined;
-        if (file.type === "application/pdf") {
-          extractedText = await extractPdfText(file);
+        let documentId: string;
+
+        // Determine upload method based on file size
+        if (file.size > FILE_SIZE_THRESHOLD) {
+          // Use server-side upload for large files
+          setUploadProgress(`Large file detected (${Math.round(file.size / 1024 / 1024)}MB), using server upload...`);
+          documentId = await handleLargeFileUpload(file);
+        } else {
+          // Use client-side upload for small files
+          setUploadProgress("Small file, using client upload...");
+          try {
+            documentId = await handleSmallFileUpload(file);
+          } catch (error) {
+            // Fallback to server-side upload if client-side fails
+            console.warn("Client-side upload failed, falling back to server-side:", error);
+            setUploadProgress("Client upload failed, trying server upload...");
+            documentId = await handleLargeFileUpload(file);
+          }
         }
 
-        // Step 2: Get presigned upload URL via tRPC
-        setUploadProgress("Getting upload URL...");
-        const uploadData = await getUploadUrl.mutateAsync({
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          extractedText,
-        });
-
-        const { documentId, uploadUrl } = uploadData;
-
-        // Step 3: Upload file to S3
-        setUploadProgress("Uploading file...");
-        const s3Response = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type,
-          },
-        });
-
-        if (!s3Response.ok) {
-          throw new Error("Failed to upload file to S3");
-        }
-
-        // Step 4: Start document processing via tRPC
+        // Start document processing via tRPC
         setUploadProgress("Starting processing...");
         await processDocument.mutateAsync({ documentId });
 
@@ -122,6 +202,8 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
             errorMessage = `PDF processing failed: ${error.message}`;
           } else if (error.message.includes("process document")) {
             errorMessage = `Document processing failed: ${error.message}`;
+          } else if (error.message.includes("File too large")) {
+            errorMessage = "File is too large. Please try again or contact support.";
           } else {
             errorMessage = error.message;
           }
@@ -135,7 +217,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         }, 2000);
       }
     },
-    [onUploadComplete, extractPdfText, getUploadUrl, processDocument, utils]
+    [onUploadComplete, handleSmallFileUpload, handleLargeFileUpload, processDocument, utils, FILE_SIZE_THRESHOLD]
   );
 
   const handleDrop = useCallback(
@@ -197,7 +279,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
                 Drop your manual here or click to upload
               </p>
               <p className="text-sm text-gray-500 mb-4">
-                Supports PDF and TXT files up to 10MB
+                Supports PDF and TXT files (small files: up to 10MB client processing, large files: server processing)
               </p>
               <Button
                 onClick={() => document.getElementById("file-input")?.click()}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
-import { generatePresignedUploadUrl, generatePresignedDownloadUrl } from "../services/s3";
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl, uploadFileToS3 } from "../services/s3";
 import { processDocument } from "../services/documents";
 import { prisma } from "@/lib/prisma";
 
@@ -9,6 +9,13 @@ const uploadSchema = z.object({
   fileType: z.string().min(1),
   fileSize: z.number().positive(),
   extractedText: z.string().optional(), // For PDFs with client-side extracted text
+});
+
+const largeFileUploadSchema = z.object({
+  fileName: z.string().min(1),
+  fileType: z.string().min(1),
+  fileSize: z.number().positive(),
+  fileData: z.string(), // Base64 encoded file data
 });
 
 const processSchema = z.object({
@@ -62,6 +69,61 @@ export const documentsRouter = router({
         uploadUrl,
         s3Key: document.s3Key,
       };
+    }),
+
+  // Upload large file directly to server
+  uploadLargeFile: protectedProcedure
+    .input(largeFileUploadSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { fileName, fileType, fileSize, fileData } = input;
+
+      // Validate file type
+      const allowedTypes = ["application/pdf", "text/plain"];
+      if (!allowedTypes.includes(fileType)) {
+        throw new Error("File type not supported. Only PDF and TXT files are allowed.");
+      }
+
+      try {
+        // Decode base64 file data
+        const fileBuffer = Buffer.from(fileData, 'base64');
+
+        // Verify decoded size matches expected size
+        if (fileBuffer.length !== fileSize) {
+          throw new Error("File size mismatch during upload");
+        }
+
+        // Generate unique S3 key
+        const timestamp = Date.now();
+        const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const s3Key = `${timestamp}-${sanitizedFileName}`;
+
+        // Create document record in database
+        const document = await prisma.document.create({
+          data: {
+            title: fileName,
+            s3Key: `uploads/${s3Key}`,
+            uploaderId: ctx.user.id,
+            metadata: {
+              originalName: fileName,
+              fileType,
+              fileSize,
+              uploadMethod: 'server', // Track that this was uploaded server-side
+            },
+          },
+        });
+
+        // Upload file directly to S3
+        await uploadFileToS3(s3Key, fileBuffer, fileType);
+
+        return {
+          documentId: document.id,
+          s3Key: document.s3Key,
+          uploadMethod: 'server',
+        };
+      } catch (error) {
+        console.error("Large file upload error:", error);
+        throw new Error(`Failed to upload large file: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
     }),
 
   // Start document processing
