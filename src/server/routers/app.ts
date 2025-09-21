@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../trpc";
 import { authRouter } from "./auth";
+import { documentsRouter } from "./documents";
+import { chatRouter } from "./chat";
 
 export const appRouter = router({
   auth: authRouter,
+  documents: documentsRouter,
+  chat: chatRouter,
   
   health: publicProcedure.query(() => {
     return {

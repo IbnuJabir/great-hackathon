@@ -7,10 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { trpc } from "@/trpc/client";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+
+  // tRPC mutation for chat queries
+  const chatQuery = trpc.chat.query.useMutation();
 
   // Quick action prompts for manufacturing technicians
   const quickActions = [
@@ -65,20 +69,8 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      // Send query to API
-      const response = await fetch("/api/chat/query", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ question: content }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-
-      const data = await response.json();
+      // Send query via tRPC
+      const data = await chatQuery.mutateAsync({ question: content });
 
       // Add assistant message
       const assistantMessage: Message = {

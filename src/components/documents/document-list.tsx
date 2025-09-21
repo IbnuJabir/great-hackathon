@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Clock, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
+import { trpc } from "@/trpc/client";
 
 type DocumentStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 
@@ -23,64 +24,40 @@ interface DocumentListProps {
 }
 
 export function DocumentList({ refreshTrigger }: DocumentListProps) {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+
+  // tRPC queries and mutations
+  const {
+    data: documentsData,
+    isLoading: loading,
+    refetch: fetchDocuments,
+  } = trpc.documents.listDocuments.useQuery(undefined, {
+    refetchInterval: (data) => {
+      // Auto-refresh every 5 seconds if there are processing/pending documents
+      const hasProcessingDocs = data?.documents?.some(doc =>
+        doc.status === "PROCESSING" || doc.status === "PENDING"
+      );
+      return hasProcessingDocs ? 5000 : false;
+    },
+  });
+
+  const processDocument = trpc.documents.processDocument.useMutation({
+    onSuccess: () => {
+      fetchDocuments();
+    },
+  });
+
+  const documents = documentsData?.documents || [];
 
   useEffect(() => {
     fetchDocuments();
-  }, [refreshTrigger]);
-
-  // Auto-refresh every 5 seconds if there are processing/pending documents
-  useEffect(() => {
-    const hasProcessingDocs = documents.some(doc =>
-      doc.status === "PROCESSING" || doc.status === "PENDING"
-    );
-
-    if (hasProcessingDocs) {
-      const interval = setInterval(fetchDocuments, 5000); // 5 seconds
-      return () => clearInterval(interval);
-    }
-  }, [documents]);
-
-  const fetchDocuments = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/documents/list");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch documents");
-      }
-
-      const data = await response.json();
-      setDocuments(data.documents || []);
-    } catch (error) {
-      console.error("Error fetching documents:", error);
-      setDocuments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [refreshTrigger, fetchDocuments]);
 
   const retryProcessing = async (documentId: string) => {
     try {
       setRetryingIds(prev => new Set(prev).add(documentId));
 
-      const response = await fetch("/api/documents/ingest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ documentId }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to retry processing");
-      }
-
-      // Refresh document list
-      fetchDocuments();
+      await processDocument.mutateAsync({ documentId });
     } catch (error) {
       console.error("Error retrying document processing:", error);
       alert(`Failed to retry processing: ${error instanceof Error ? error.message : "Unknown error"}`);

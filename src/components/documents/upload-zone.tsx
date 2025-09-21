@@ -4,6 +4,13 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, FileText, Loader2 } from "lucide-react";
+import { trpc } from "@/trpc/client";
+import * as pdfjs from "pdfjs-dist";
+
+// Configure PDF.js worker
+if (typeof window !== "undefined") {
+  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 interface UploadZoneProps {
   onUploadComplete: (documentId: string) => void;
@@ -14,31 +21,69 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
 
+  // tRPC mutations
+  const getUploadUrl = trpc.documents.getUploadUrl.useMutation();
+  const processDocument = trpc.documents.processDocument.useMutation();
+
+  // Extract text from PDF using PDF.js
+  const extractPdfText = useCallback(async (file: File): Promise<string> => {
+    try {
+      setUploadProgress("Extracting text from PDF...");
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+      let fullText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .filter((item): item is any => "str" in item)
+          .map((item) => item.str)
+          .join(" ");
+
+        if (pageText.trim()) {
+          fullText += pageText + "\n";
+        }
+      }
+
+      if (!fullText.trim()) {
+        throw new Error("No text content found in PDF");
+      }
+
+      console.log(`Extracted ${fullText.length} characters from PDF`);
+      return fullText.trim();
+    } catch (error) {
+      console.error("PDF text extraction failed:", error);
+      throw new Error("Failed to extract text from PDF. Please ensure it's a text-based PDF.");
+    }
+  }, []);
+
   const handleFileUpload = useCallback(
     async (file: File) => {
       setIsUploading(true);
       setUploadProgress("Preparing upload...");
 
       try {
-        // Step 1: Get presigned upload URL
-        const uploadResponse = await fetch("/api/documents/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-          }),
-        });
-
-        if (!uploadResponse.ok) {
-          const error = await uploadResponse.json();
-          throw new Error(error.error || "Failed to prepare upload");
+        // Step 1: Extract text from PDF if applicable
+        let extractedText: string | undefined;
+        if (file.type === "application/pdf") {
+          extractedText = await extractPdfText(file);
         }
 
-        const { documentId, uploadUrl } = await uploadResponse.json();
+        // Step 2: Get presigned upload URL via tRPC
+        setUploadProgress("Getting upload URL...");
+        const uploadData = await getUploadUrl.mutateAsync({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          extractedText,
+        });
 
-        // Step 2: Upload file to S3
+        const { documentId, uploadUrl } = uploadData;
+
+        // Step 3: Upload file to S3
         setUploadProgress("Uploading file...");
         const s3Response = await fetch(uploadUrl, {
           method: "PUT",
@@ -49,22 +94,12 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         });
 
         if (!s3Response.ok) {
-          throw new Error("Failed to upload file");
+          throw new Error("Failed to upload file to S3");
         }
 
-        // Step 3: Start document processing
-        setUploadProgress("Processing document...");
-        const ingestResponse = await fetch("/api/documents/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId }),
-        });
-
-        if (!ingestResponse.ok) {
-          const error = await ingestResponse.json();
-          console.error("Document processing failed:", error);
-          throw new Error(error.error || "Failed to start document processing");
-        }
+        // Step 4: Start document processing via tRPC
+        setUploadProgress("Starting processing...");
+        await processDocument.mutateAsync({ documentId });
 
         setUploadProgress("Upload complete! Processing in background...");
         onUploadComplete(documentId);
@@ -77,6 +112,8 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         if (error instanceof Error) {
           if (error.message.includes("Failed to upload file")) {
             errorMessage = "Failed to upload file to S3. Check AWS credentials and bucket access.";
+          } else if (error.message.includes("extract text")) {
+            errorMessage = `PDF processing failed: ${error.message}`;
           } else if (error.message.includes("process document")) {
             errorMessage = `Document processing failed: ${error.message}`;
           } else {
@@ -92,7 +129,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         }, 2000);
       }
     },
-    [onUploadComplete]
+    [onUploadComplete, extractPdfText, getUploadUrl, processDocument]
   );
 
   const handleDrop = useCallback(
