@@ -1,11 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { PrismaClient } from "@prisma/client";
 import { nextCookies } from "better-auth/next-js";
 import { sendEmail, emailTemplates } from "./email";
-
-// Server-only auth instance with Prisma
-const prisma = new PrismaClient();
+import { prisma } from "./prisma";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET || "your-secret-key-here-min-32-chars-long-replace-with-actual-secret",
