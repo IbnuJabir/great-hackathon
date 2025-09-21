@@ -35,6 +35,9 @@ const nextConfig: NextConfig = {
     // AWS Services
     AWS_REGION: process.env.AWS_REGION,
     AW_REGION: process.env.AW_REGION, // Fallback region variable
+    AW_ACCESS_KEY_ID: process.env.AW_ACCESS_KEY_ID,
+    AW_SECRET_ACCESS_KEY: process.env.AW_SECRET_ACCESS_KEY,
+    AW_PROFILE: process.env.AW_PROFILE, // For local development
     S3_BUCKET: process.env.S3_BUCKET,
     S3_UPLOAD_PREFIX: process.env.S3_UPLOAD_PREFIX,
 
