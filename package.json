@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start"
+    "build": "prisma generate && next build --turbopack",
+    "build:amplify": "prisma generate && next build --turbopack",
+    "start": "next start",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.893.0",
