@@ -33,37 +33,68 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       const pdfjs = await import("pdfjs-dist");
 
       // Configure worker on client side only
-      if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      if (typeof window !== "undefined") {
+        // Use a more reliable worker URL
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        }
       }
 
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+      // Add better error handling for PDF loading
+      const loadingTask = pdfjs.getDocument({
+        data: arrayBuffer,
+        // Disable font loading to avoid test file issues
+        disableFontFace: true,
+        // Disable stream to avoid file system access
+        disableStream: true,
+        // Disable range requests
+        disableRange: true
+      });
+
+      const pdf = await loadingTask.promise;
 
       let fullText = "";
 
       for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .filter((item): item is { str: string } => "str" in item)
-          .map((item) => item.str)
-          .join(" ");
+        try {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .filter((item): item is { str: string } => "str" in item)
+            .map((item) => item.str)
+            .join(" ");
 
-        if (pageText.trim()) {
-          fullText += pageText + "\n";
+          if (pageText.trim()) {
+            fullText += pageText + "\n";
+          }
+        } catch (pageError) {
+          console.warn(`Failed to extract text from page ${i}:`, pageError);
+          // Continue with other pages
         }
       }
 
       if (!fullText.trim()) {
-        throw new Error("No text content found in PDF");
+        throw new Error("No text content found in PDF - might be a scanned document");
       }
 
       console.log(`Extracted ${fullText.length} characters from PDF`);
       return fullText.trim();
     } catch (error) {
       console.error("PDF text extraction failed:", error);
-      throw new Error("Failed to extract text from PDF. Please ensure it's a text-based PDF.");
+
+      // Provide more specific error handling
+      if (error instanceof Error) {
+        if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
+          throw new Error("PDF processing configuration error - falling back to server processing");
+        }
+        if (error.message.includes("No text content found")) {
+          throw new Error("No text content found in PDF - might be a scanned document");
+        }
+      }
+
+      throw new Error("Failed to extract text from PDF on client side");
     }
   }, []);
 
@@ -119,8 +150,19 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         try {
           extractedText = await extractPdfText(file);
         } catch (error) {
-          console.warn("Client-side PDF extraction failed, will use server-side fallback:", error);
-          // Continue without extracted text - server will handle it
+          console.warn("Client-side PDF extraction failed:", error);
+
+          // Check if it's a configuration error that requires server fallback
+          if (error instanceof Error &&
+              (error.message.includes("ENOENT") ||
+               error.message.includes("configuration error") ||
+               error.message.includes("no such file"))) {
+            console.log("PDF.js configuration issue detected, forcing server upload");
+            throw new Error("Client-side PDF processing unavailable, using server upload");
+          }
+
+          // For other errors, continue without extracted text - server will handle it
+          console.log("Continuing without client-side text extraction, server will process");
         }
       }
 
@@ -161,15 +203,18 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
 
       try {
         let documentId: string;
+        const fileSizeMB = Math.round(file.size / 1024 / 1024 * 100) / 100; // Round to 2 decimals
+
+        console.log(`File size: ${file.size} bytes (${fileSizeMB}MB), threshold: ${FILE_SIZE_THRESHOLD} bytes`);
 
         // Determine upload method based on file size
         if (file.size > FILE_SIZE_THRESHOLD) {
           // Use server-side upload for large files
-          setUploadProgress(`Large file detected (${Math.round(file.size / 1024 / 1024)}MB), using server upload...`);
+          setUploadProgress(`Large file detected (${fileSizeMB}MB), using server upload...`);
           documentId = await handleLargeFileUpload(file);
         } else {
           // Use client-side upload for small files
-          setUploadProgress("Small file, using client upload...");
+          setUploadProgress(`Small file (${fileSizeMB}MB), trying client upload...`);
           try {
             documentId = await handleSmallFileUpload(file);
           } catch (error) {
