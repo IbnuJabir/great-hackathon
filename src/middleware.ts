@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
 
   if (authRoutes.some(route => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/dashboard/chat", request.url));
     }
   }
 

@@ -11,7 +11,8 @@ import {
   Trash2,
   Edit,
   FileText,
-  Calendar
+  Calendar,
+  User
 } from "lucide-react";
 import { trpc } from "@/trpc/client";
 import { formatDistanceToNow } from "date-fns";
@@ -118,6 +119,19 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
             </Button>
           ))}
         </div>
+
+        <Separator className="my-2 w-8" />
+
+        <Link href="/dashboard/account">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mb-2"
+            title="Account"
+          >
+            <User className="h-4 w-4" />
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -260,6 +274,16 @@ export function ChatSidebar({ currentSessionId, onSessionSelect, onNewChat }: Ch
             ))}
           </div>
         )}
+      </div>
+
+      {/* Bottom User Account Button */}
+      <div className="p-4 border-t">
+        <Link href="/dashboard/account">
+          <Button variant="outline" className="w-full justify-start gap-2">
+            <User className="h-4 w-4" />
+            Account
+          </Button>
+        </Link>
       </div>
     </div>
   );
