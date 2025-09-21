@@ -14,7 +14,7 @@ export default function DocumentsPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">📚 Document Management</h1>
+            <h1 className="text-3xl font-bold mb-2">Document Management</h1>
             <p className="text-gray-600">
               Upload technical manuals and documentation for AI-powered search
             </p>

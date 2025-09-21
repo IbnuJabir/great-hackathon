@@ -18,161 +18,20 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   // tRPC mutations and utils
   const utils = trpc.useUtils();
   const getUploadUrl = trpc.documents.getUploadUrl.useMutation();
-  const uploadLargeFile = trpc.documents.uploadLargeFile.useMutation();
   const processDocument = trpc.documents.processDocument.useMutation();
 
-  // File size threshold for determining upload method (10MB)
-  const FILE_SIZE_THRESHOLD = 10 * 1024 * 1024;
+  // All files now processed server-side with Bedrock
 
-  // Extract text from PDF using PDF.js (dynamic import)
-  const extractPdfText = useCallback(async (file: File): Promise<string> => {
-    try {
-      setUploadProgress("Extracting text from PDF...");
-
-      // Dynamic import to avoid SSR issues
-      const pdfjs = await import("pdfjs-dist");
-
-      // Configure worker on client side only
-      if (typeof window !== "undefined") {
-        // Use a more reliable worker URL
-        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-          pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-        }
-      }
-
-      const arrayBuffer = await file.arrayBuffer();
-
-      // Add better error handling for PDF loading
-      const loadingTask = pdfjs.getDocument({
-        data: arrayBuffer,
-        // Disable font loading to avoid test file issues
-        disableFontFace: true,
-        // Disable stream to avoid file system access
-        disableStream: true,
-        // Disable range requests
-        disableRange: true
-      });
-
-      const pdf = await loadingTask.promise;
-
-      let fullText = "";
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        try {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .filter((item): item is { str: string } => "str" in item)
-            .map((item) => item.str)
-            .join(" ");
-
-          if (pageText.trim()) {
-            fullText += pageText + "\n";
-          }
-        } catch (pageError) {
-          console.warn(`Failed to extract text from page ${i}:`, pageError);
-          // Continue with other pages
-        }
-      }
-
-      if (!fullText.trim()) {
-        throw new Error("No text content found in PDF - might be a scanned document");
-      }
-
-      console.log(`Extracted ${fullText.length} characters from PDF`);
-      return fullText.trim();
-    } catch (error) {
-      console.error("PDF text extraction failed:", error);
-
-      // Provide more specific error handling
-      if (error instanceof Error) {
-        if (error.message.includes("ENOENT") || error.message.includes("no such file")) {
-          throw new Error("PDF processing configuration error - falling back to server processing");
-        }
-        if (error.message.includes("No text content found")) {
-          throw new Error("No text content found in PDF - might be a scanned document");
-        }
-      }
-
-      throw new Error("Failed to extract text from PDF on client side");
-    }
-  }, []);
-
-  // Convert file to base64 for server upload
-  const fileToBase64 = useCallback(async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Remove data:type/subtype;base64, prefix
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  }, []);
-
-  // Server-side upload for large files
-  const handleLargeFileUpload = useCallback(
-    async (file: File) => {
-      setUploadProgress("Converting file for server upload...");
-
-      try {
-        // Convert file to base64
-        const fileData = await fileToBase64(file);
-
-        // Upload directly to server
-        setUploadProgress("Uploading large file to server...");
-        const result = await uploadLargeFile.mutateAsync({
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          fileData,
-        });
-
-        return result.documentId;
-      } catch (error) {
-        console.error("Large file upload error:", error);
-        throw error;
-      }
-    },
-    [uploadLargeFile, fileToBase64]
-  );
-
-  // Client-side upload for small files (existing logic)
-  const handleSmallFileUpload = useCallback(
-    async (file: File) => {
-      let extractedText: string | undefined;
-
-      // Try client-side text extraction for PDFs
-      if (file.type === "application/pdf") {
-        try {
-          extractedText = await extractPdfText(file);
-        } catch (error) {
-          console.warn("Client-side PDF extraction failed:", error);
-
-          // Check if it's a configuration error that requires server fallback
-          if (error instanceof Error &&
-              (error.message.includes("ENOENT") ||
-               error.message.includes("configuration error") ||
-               error.message.includes("no such file"))) {
-            console.log("PDF.js configuration issue detected, forcing server upload");
-            throw new Error("Client-side PDF processing unavailable, using server upload");
-          }
-
-          // For other errors, continue without extracted text - server will handle it
-          console.log("Continuing without client-side text extraction, server will process");
-        }
-      }
-
-      // Get presigned upload URL via tRPC
+  // Handle all file uploads via S3 presigned URLs
+  const handleFileUploadToS3 = useCallback(
+    async (file: File): Promise<string> => {
+      // Get presigned upload URL (no client-side text extraction)
       setUploadProgress("Getting upload URL...");
       const uploadData = await getUploadUrl.mutateAsync({
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
-        extractedText,
+        // No extracted text - all processing happens server-side with Bedrock
       });
 
       const { documentId, uploadUrl } = uploadData;
@@ -193,8 +52,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
 
       return documentId;
     },
-    [extractPdfText, getUploadUrl]
+    [getUploadUrl]
   );
+
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -202,31 +62,15 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       setUploadProgress("Preparing upload...");
 
       try {
-        let documentId: string;
-        const fileSizeMB = Math.round(file.size / 1024 / 1024 * 100) / 100; // Round to 2 decimals
+        const fileSizeMB = Math.round(file.size / 1024 / 1024 * 100) / 100;
+        console.log(`Uploading file: ${file.name} (${fileSizeMB}MB)`);
 
-        console.log(`File size: ${file.size} bytes (${fileSizeMB}MB), threshold: ${FILE_SIZE_THRESHOLD} bytes`);
-
-        // Determine upload method based on file size
-        if (file.size > FILE_SIZE_THRESHOLD) {
-          // Use server-side upload for large files
-          setUploadProgress(`Large file detected (${fileSizeMB}MB), using server upload...`);
-          documentId = await handleLargeFileUpload(file);
-        } else {
-          // Use client-side upload for small files
-          setUploadProgress(`Small file (${fileSizeMB}MB), trying client upload...`);
-          try {
-            documentId = await handleSmallFileUpload(file);
-          } catch (error) {
-            // Fallback to server-side upload if client-side fails
-            console.warn("Client-side upload failed, falling back to server-side:", error);
-            setUploadProgress("Client upload failed, trying server upload...");
-            documentId = await handleLargeFileUpload(file);
-          }
-        }
+        // All files uploaded via S3 and processed server-side with Bedrock
+        setUploadProgress(`Uploading ${file.name} (${fileSizeMB}MB)...`);
+        const documentId = await handleFileUploadToS3(file);
 
         // Start document processing via tRPC
-        setUploadProgress("Starting processing...");
+        setUploadProgress("Starting Bedrock processing...");
         await processDocument.mutateAsync({ documentId });
 
         // Immediately invalidate documents cache for instant UI update
@@ -243,8 +87,6 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         if (error instanceof Error) {
           if (error.message.includes("Failed to upload file")) {
             errorMessage = "Failed to upload file to S3. Check AWS credentials and bucket access.";
-          } else if (error.message.includes("extract text")) {
-            errorMessage = `PDF processing failed: ${error.message}`;
           } else if (error.message.includes("process document")) {
             errorMessage = `Document processing failed: ${error.message}`;
           } else if (error.message.includes("File too large")) {
@@ -262,7 +104,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         }, 2000);
       }
     },
-    [onUploadComplete, handleSmallFileUpload, handleLargeFileUpload, processDocument, utils, FILE_SIZE_THRESHOLD]
+    [onUploadComplete, handleFileUploadToS3, processDocument, utils]
   );
 
   const handleDrop = useCallback(

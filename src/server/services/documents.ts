@@ -4,74 +4,7 @@ import { extractTextWithBedrock, analyzeDocumentStructure } from "./bedrock-docu
 import { prisma } from "@/lib/prisma";
 import { chunkText } from "@/lib/documents/chunking";
 
-// AWS Textract for OCR fallback
-async function extractTextWithTextract(buffer: Buffer): Promise<string> {
-  try {
-    console.log("Attempting PDF text extraction using AWS Textract");
 
-    const { TextractClient, DetectDocumentTextCommand } = await import("@aws-sdk/client-textract");
-
-    const client = new TextractClient({
-      region: process.env.AWS_REGION || "us-east-1",
-      credentials: process.env.AWS_ACCESS_KEY_ID ? {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        sessionToken: process.env.AWS_SESSION_TOKEN,
-      } : undefined,
-    });
-
-    const command = new DetectDocumentTextCommand({
-      Document: {
-        Bytes: buffer,
-      },
-    });
-
-    const response = await client.send(command);
-
-    if (!response.Blocks || response.Blocks.length === 0) {
-      throw new Error("No text blocks found in document");
-    }
-
-    // Extract text from blocks
-    const text = response.Blocks
-      .filter(block => block.BlockType === "LINE" && block.Text)
-      .map(block => block.Text)
-      .join("\n");
-
-    if (!text.trim()) {
-      throw new Error("No readable text found in document");
-    }
-
-    console.log(`Textract extracted ${text.length} characters`);
-    return text.trim();
-  } catch (error) {
-    console.error("Textract extraction failed:", error);
-    throw new Error(`Textract extraction failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-  }
-}
-
-export async function extractTextFromPdf(buffer: Buffer, filename: string = "document.pdf"): Promise<string> {
-  // Try Bedrock first for better AI-powered text extraction
-  try {
-    console.log("Starting PDF text extraction with Bedrock AI");
-    return await extractTextWithBedrock(buffer, filename);
-  } catch (bedrockError) {
-    console.warn("Bedrock extraction failed, falling back to Textract:", bedrockError);
-
-    // Fallback to Textract if enabled
-    if (process.env.ENABLE_TEXTRACT === 'true') {
-      try {
-        console.log("Trying Textract as fallback");
-        return await extractTextWithTextract(buffer);
-      } catch (textractError) {
-        console.warn("Textract fallback also failed:", textractError);
-      }
-    }
-
-    // If both AI methods fail, throw the original Bedrock error with more context
-    throw new Error(`AI-powered PDF extraction failed. ${bedrockError instanceof Error ? bedrockError.message : "Unknown error"}. Please ensure the PDF is not corrupted and contains readable text.`);
-  }
-}
 
 export async function processDocument(documentId: string) {
   try {
@@ -101,17 +34,14 @@ export async function processDocument(documentId: string) {
 
     console.log(`Extracting text from document type: ${document.s3Key.split('.').pop()}`);
 
-    // Check if we have pre-extracted text from client-side processing
+    // Extract text using server-side Bedrock processing
     let text: string;
     const metadata = document.metadata as any;
 
-    if (metadata?.extractedText) {
-      console.log("Using pre-extracted text from client-side processing");
-      text = metadata.extractedText;
-    } else if (document.s3Key.toLowerCase().endsWith(".pdf")) {
-      console.log(`Attempting server-side PDF text extraction (upload method: ${metadata?.uploadMethod || 'client'})`);
+    if (document.s3Key.toLowerCase().endsWith(".pdf")) {
+      console.log("Processing PDF with Bedrock Nova models");
 
-      // Use enhanced Bedrock processing for better document analysis
+      // Use Bedrock processing for all PDFs
       try {
         const analysis = await analyzeDocumentStructure(fileBuffer, document.title || document.s3Key);
         text = analysis.text;
@@ -126,7 +56,7 @@ export async function processDocument(documentId: string) {
               hasTables: analysis.metadata.hasTables,
               pageCount: analysis.metadata.pageCount,
               sections: analysis.metadata.sections,
-              processingMethod: 'bedrock-ai'
+              processingMethod: 'bedrock-nova'
             }
           }
         });
@@ -134,7 +64,7 @@ export async function processDocument(documentId: string) {
         console.log(`Bedrock analysis complete: ${analysis.metadata.sections.length} sections, images: ${analysis.metadata.hasImages}, tables: ${analysis.metadata.hasTables}`);
       } catch (analysisError) {
         console.warn("Enhanced analysis failed, falling back to simple extraction:", analysisError);
-        text = await extractTextFromPdf(fileBuffer, document.title || document.s3Key);
+        text = await extractTextWithBedrock(fileBuffer, document.title || document.s3Key);
       }
     } else if (document.s3Key.toLowerCase().endsWith(".txt")) {
       console.log("Processing TXT file");
@@ -143,13 +73,8 @@ export async function processDocument(documentId: string) {
       throw new Error("Unsupported file type");
     }
 
-    // Additional validation for server-uploaded files
-    if (metadata?.uploadMethod === 'server') {
-      console.log("Processing server-uploaded file, performing additional validation");
-      if (!text || text.trim().length < 10) {
-        throw new Error("Insufficient text content extracted from server-uploaded file");
-      }
-    }
+    // Validate extracted text
+    console.log("Validating extracted text content");
 
     if (!text || text.trim().length === 0) {
       throw new Error("No text content extracted from document");

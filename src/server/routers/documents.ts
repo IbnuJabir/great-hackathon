@@ -35,10 +35,10 @@ export const documentsRouter = router({
         throw new Error("File type not supported. Only PDF and TXT files are allowed.");
       }
 
-      // Validate file size (10MB limit)
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      // Validate reasonable file size (100MB limit to prevent abuse)
+      const maxSize = 100 * 1024 * 1024; // 100MB
       if (fileSize > maxSize) {
-        throw new Error("File too large. Maximum size is 10MB.");
+        throw new Error("File too large. Maximum size is 100MB.");
       }
 
       // Generate unique S3 key
