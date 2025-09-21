@@ -39,6 +39,21 @@ export async function generatePresignedUploadUrl(
   }
 }
 
+export async function generatePresignedDownloadUrl(key: string): Promise<string> {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    });
+
+    const url = await getSignedUrl(s3, command, { expiresIn: 3600 }); // 1 hour
+    return url;
+  } catch (error) {
+    console.error("Error generating presigned download URL:", error);
+    throw new Error(`Failed to generate presigned download URL: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
 export async function downloadFileFromS3(key: string): Promise<Buffer> {
   try {
     const command = new GetObjectCommand({

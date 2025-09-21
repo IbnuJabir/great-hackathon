@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
-import { generatePresignedUploadUrl } from "../services/s3";
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl } from "../services/s3";
 import { processDocument } from "../services/documents";
 import { prisma } from "@/lib/prisma";
 
@@ -177,6 +177,31 @@ export const documentsRouter = router({
         chunkCount,
         processingError: document.processingError,
         createdAt: document.createdAt.toISOString(),
+      };
+    }),
+
+  // Get document download URL
+  getDocumentUrl: protectedProcedure
+    .input(z.object({ documentId: z.string().cuid() }))
+    .query(async ({ input, ctx }) => {
+      // Verify document belongs to user
+      const document = await prisma.document.findFirst({
+        where: {
+          id: input.documentId,
+          uploaderId: ctx.user.id,
+        },
+      });
+
+      if (!document) {
+        throw new Error("Document not found or access denied");
+      }
+
+      // Generate presigned download URL
+      const downloadUrl = await generatePresignedDownloadUrl(document.s3Key);
+
+      return {
+        downloadUrl,
+        title: document.title,
       };
     }),
 });

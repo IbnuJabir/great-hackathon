@@ -5,9 +5,10 @@ import { MessageList, Message } from "@/components/chat/message-list";
 import { MessageInput } from "@/components/chat/message-input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Sparkles } from "lucide-react";
+import { FileText, Sparkles, Moon } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
+import { ModeToggle } from "@/components/ui/theme-icon";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -107,21 +108,14 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="border-b p-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
               <h1 className="text-lg font-semibold">DocChat</h1>
             </div>
-            {isTyping && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                </div>
-                <span>Thinking...</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+            </div>
           </div>
         </div>
 

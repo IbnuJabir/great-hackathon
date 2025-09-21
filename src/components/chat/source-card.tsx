@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ExternalLink } from "lucide-react";
+import { trpc } from "@/trpc/client";
 
 interface Source {
   documentId: string;
@@ -17,6 +18,17 @@ interface SourceCardProps {
 
 export function SourceCard({ sources }: SourceCardProps) {
   if (sources.length === 0) return null;
+
+  const utils = trpc.useUtils();
+
+  const handleDocumentClick = async (documentId: string) => {
+    try {
+      const result = await utils.documents.getDocumentUrl.fetch({ documentId });
+      window.open(result.downloadUrl, '_blank');
+    } catch (error) {
+      console.error('Failed to get document URL:', error);
+    }
+  };
 
   return (
     <div className="mt-4 p-4 bg-muted/30 rounded-lg border">
@@ -47,7 +59,11 @@ export function SourceCard({ sources }: SourceCardProps) {
                 <Badge variant="outline" className="text-xs">
                   {Math.round(source.similarity * 100)}%
                 </Badge>
-                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                <button
+                  onClick={() => handleDocumentClick(source.documentId)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Open document"
+                >
                   <ExternalLink className="h-3 w-3" />
                 </button>
               </div>

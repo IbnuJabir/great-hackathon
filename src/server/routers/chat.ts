@@ -181,6 +181,7 @@ export const chatRouter = router({
         documentId: chunk.documentId,
         documentTitle: chunk.document.title,
         chunkText: chunk.chunkText,
+        similarity: chunk.relevanceScore / 100, // Convert to 0-1 range for percentage display
         metadata: chunk.metadata,
       }));
 
