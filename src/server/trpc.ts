@@ -23,8 +23,19 @@ export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.session || !ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required. Please sign in."
+    });
   }
+
+  if (!ctx.user.id || typeof ctx.user.id !== 'string' || ctx.user.id.trim() === '') {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Invalid user session. Please sign in again."
+    });
+  }
+
   return next({
     ctx: {
       ...ctx,

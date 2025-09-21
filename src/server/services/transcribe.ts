@@ -2,18 +2,36 @@ import { TranscribeClient, StartTranscriptionJobCommand, GetTranscriptionJobComm
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 
-// Configure AWS clients to use SSO profile or default credential chain
-const transcribeClient = new TranscribeClient({
-  region: process.env.AW_REGION || "us-east-1",
-  // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
-});
+// AWS Configuration
+const REGION = process.env.AWS_REGION || process.env.AW_REGION || "us-east-1";
 
-const s3Client = new S3Client({
-  region: process.env.AW_REGION || "us-east-1",
-  // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
-});
+// Configure AWS clients with environment-appropriate credentials
+const createAWSClients = () => {
+  const config: any = {
+    region: REGION,
+  };
+
+  // In production or when explicit credentials are provided, use them
+  if (process.env.AW_ACCESS_KEY_ID && process.env.AW_SECRET_ACCESS_KEY) {
+    config.credentials = {
+      accessKeyId: process.env.AW_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AW_SECRET_ACCESS_KEY,
+    };
+    console.log(`Transcribe service using explicit AWS credentials for region: ${REGION}`);
+  } else if (process.env.AW_PROFILE) {
+    // Local development with AWS SSO profile
+    console.log(`Transcribe service using AWS SSO profile: ${process.env.AW_PROFILE} for region: ${REGION}`);
+  } else {
+    console.log(`Transcribe service using default AWS credential chain for region: ${REGION}`);
+  }
+
+  return {
+    transcribeClient: new TranscribeClient(config),
+    s3Client: new S3Client(config),
+  };
+};
+
+const { transcribeClient, s3Client } = createAWSClients();
 
 interface TranscriptionResult {
   transcriptText: string;

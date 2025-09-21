@@ -1,11 +1,32 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
-// Configure AWS SDK v3 for Bedrock to use SSO profile or default credential chain
-const bedrock = new BedrockRuntimeClient({
-  region: process.env.AW_REGION || "us-east-1",
-  // Remove explicit credentials to use default credential chain (SSO profile)
-  // The AWS SDK will automatically use the profile specified in AW_PROFILE env var
-});
+// AWS Configuration
+const REGION = process.env.AWS_REGION || process.env.AW_REGION || "us-east-1";
+
+// Configure Bedrock client with environment-appropriate credentials
+const createBedrockClient = () => {
+  const config: any = {
+    region: REGION,
+  };
+
+  // In production or when explicit credentials are provided, use them
+  if (process.env.AW_ACCESS_KEY_ID && process.env.AW_SECRET_ACCESS_KEY) {
+    config.credentials = {
+      accessKeyId: process.env.AW_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AW_SECRET_ACCESS_KEY,
+    };
+    console.log(`Bedrock service using explicit AWS credentials for region: ${REGION}`);
+  } else if (process.env.AW_PROFILE) {
+    // Local development with AWS SSO profile
+    console.log(`Bedrock service using AWS SSO profile: ${process.env.AW_PROFILE} for region: ${REGION}`);
+  } else {
+    console.log(`Bedrock service using default AWS credential chain for region: ${REGION}`);
+  }
+
+  return new BedrockRuntimeClient(config);
+};
+
+const bedrock = createBedrockClient();
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const modelId = process.env.BEDROCK_EMBEDDING_MODEL || "amazon.titan-embed-text-v2:0";

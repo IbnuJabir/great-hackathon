@@ -29,6 +29,11 @@ export const documentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { fileName, fileType, fileSize, extractedText } = input;
 
+      // Ensure user is authenticated
+      if (!ctx.user?.id) {
+        throw new Error("User authentication error. Please refresh and try again.");
+      }
+
       // Validate file type
       const allowedTypes = ["application/pdf", "text/plain"];
       if (!allowedTypes.includes(fileType)) {
@@ -46,29 +51,39 @@ export const documentsRouter = router({
       const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
       const s3Key = `${timestamp}-${sanitizedFileName}`;
 
-      // Create document record in database
-      const document = await prisma.document.create({
-        data: {
-          title: fileName,
-          s3Key: `uploads/${s3Key}`,
-          uploaderId: ctx.user.id,
-          metadata: {
-            originalName: fileName,
-            fileType,
-            fileSize,
-            extractedText: extractedText || null, // Store extracted text if provided
+      try {
+        // Create document record in database
+        const document = await prisma.document.create({
+          data: {
+            title: fileName,
+            s3Key: `uploads/${s3Key}`,
+            uploaderId: ctx.user.id,
+            metadata: {
+              originalName: fileName,
+              fileType,
+              fileSize,
+              extractedText: extractedText || null, // Store extracted text if provided
+            },
           },
-        },
-      });
+        });
 
-      // Generate presigned upload URL
-      const uploadUrl = await generatePresignedUploadUrl(s3Key, fileType);
+        // Generate presigned upload URL
+        const uploadUrl = await generatePresignedUploadUrl(s3Key, fileType);
 
-      return {
-        documentId: document.id,
-        uploadUrl,
-        s3Key: document.s3Key,
-      };
+        return {
+          documentId: document.id,
+          uploadUrl,
+          s3Key: document.s3Key,
+        };
+      } catch (error) {
+        console.error("Failed to create document record:", error);
+
+        if (error instanceof Error && error.message.includes('foreign key constraint')) {
+          throw new Error("User authentication error. Please sign out and sign back in.");
+        }
+
+        throw error;
+      }
     }),
 
   // Upload large file directly to server
@@ -76,6 +91,11 @@ export const documentsRouter = router({
     .input(largeFileUploadSchema)
     .mutation(async ({ input, ctx }) => {
       const { fileName, fileType, fileSize, fileData } = input;
+
+      // Ensure user is authenticated
+      if (!ctx.user?.id) {
+        throw new Error("User authentication error. Please refresh and try again.");
+      }
 
       // Validate file type
       const allowedTypes = ["application/pdf", "text/plain"];
@@ -122,6 +142,11 @@ export const documentsRouter = router({
         };
       } catch (error) {
         console.error("Large file upload error:", error);
+
+        if (error instanceof Error && error.message.includes('foreign key constraint')) {
+          throw new Error("User authentication error. Please sign out and sign back in.");
+        }
+
         throw new Error(`Failed to upload large file: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
     }),

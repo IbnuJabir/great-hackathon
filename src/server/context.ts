@@ -7,6 +7,14 @@ export async function createContext() {
       headers: await headers(),
     });
 
+    // Session validation
+    if (!session?.user?.id) {
+      return {
+        session: null,
+        user: null,
+      };
+    }
+
     return {
       session,
       user: session?.user ?? null,
