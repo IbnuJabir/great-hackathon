@@ -29,20 +29,21 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-200px)]">
         <div>
           <h2 className="text-xl font-semibold mb-4">Upload New Document</h2>
           <UploadZone
             onUploadComplete={(documentId) => {
-              // Trigger refresh of document list
               setRefreshTrigger(documentId);
             }}
           />
         </div>
 
-        <div>
+        <div className="flex flex-col">
           <h2 className="text-xl font-semibold mb-4">Your Documents</h2>
-          <DocumentList refreshTrigger={refreshTrigger} />
+          <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-200px)]">
+            <DocumentList refreshTrigger={refreshTrigger} />
+          </div>
         </div>
       </div>
     </div>

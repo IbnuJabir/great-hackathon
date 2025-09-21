@@ -125,8 +125,8 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
         );
       case "PROCESSING":
         return (
-          <Badge variant="secondary">
-            <Clock className="h-3 w-3 mr-1" />
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <Clock className="h-3 w-3 mr-1 animate-pulse" />
             Processing...
           </Badge>
         );
@@ -170,15 +170,27 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
     }
   };
 
+  const truncateFilename = (filename: string, maxLength: number = 35) => {
+    if (filename.length <= maxLength) return filename;
+
+    const extension = filename.split('.').pop();
+    const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+    const truncatedName = nameWithoutExt.substring(0, maxLength - extension!.length - 4);
+
+    return `${truncatedName}...${extension}`;
+  };
+
   return (
     <div className="space-y-4">
       {documents.map((doc) => (
         <Card key={doc.id} className="p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <FileText className="h-6 w-6 text-blue-500" />
-              <div>
-                <h3 className="font-medium">{doc.title}</h3>
+            <div className="flex items-center space-x-3 min-w-0 flex-1">
+              <FileText className="h-6 w-6 text-blue-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium truncate" title={doc.title}>
+                  {truncateFilename(doc.title)}
+                </h3>
                 <p className="text-sm text-gray-500">
                   Uploaded {new Date(doc.createdAt).toLocaleDateString()}
                 </p>
@@ -189,7 +201,7 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
                 )}
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-shrink-0">
               {getStatusBadge(doc)}
             </div>
           </div>
