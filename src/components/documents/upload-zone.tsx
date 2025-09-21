@@ -62,17 +62,29 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
 
         if (!ingestResponse.ok) {
           const error = await ingestResponse.json();
-          throw new Error(error.error || "Failed to process document");
+          console.error("Document processing failed:", error);
+          throw new Error(error.error || "Failed to start document processing");
         }
 
-        setUploadProgress("Upload complete!");
+        setUploadProgress("Upload complete! Processing in background...");
         onUploadComplete(documentId);
 
       } catch (error) {
         console.error("Upload error:", error);
-        setUploadProgress(
-          `Error: ${error instanceof Error ? error.message : "Upload failed"}`
-        );
+
+        // Provide more specific error messages
+        let errorMessage = "Upload failed";
+        if (error instanceof Error) {
+          if (error.message.includes("Failed to upload file")) {
+            errorMessage = "Failed to upload file to S3. Check AWS credentials and bucket access.";
+          } else if (error.message.includes("process document")) {
+            errorMessage = `Document processing failed: ${error.message}`;
+          } else {
+            errorMessage = error.message;
+          }
+        }
+
+        setUploadProgress(`Error: ${errorMessage}`);
       } finally {
         setTimeout(() => {
           setIsUploading(false);

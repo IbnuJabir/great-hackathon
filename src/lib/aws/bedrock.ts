@@ -1,14 +1,14 @@
-import AWS from "aws-sdk";
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
-// Configure AWS SDK v2 for Bedrock
-AWS.config.update({
+// Configure AWS SDK v3 for Bedrock
+const bedrock = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || "us-east-1",
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  sessionToken: process.env.AWS_SESSION_TOKEN,
+  credentials: process.env.AWS_ACCESS_KEY_ID ? {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    sessionToken: process.env.AWS_SESSION_TOKEN,
+  } : undefined, // Use default credential chain if not provided
 });
-
-const bedrock = new AWS.BedrockRuntime();
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const modelId = process.env.BEDROCK_EMBEDDING_MODEL || "amazon.titan-embed-text-v2:0";
@@ -18,15 +18,15 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   };
 
   try {
-    const params = {
+    const command = new InvokeModelCommand({
       modelId,
       body: JSON.stringify(payload),
       contentType: "application/json",
       accept: "application/json",
-    };
+    });
 
-    const response = await bedrock.invokeModel(params).promise();
-    const result = JSON.parse(response.body.toString());
+    const response = await bedrock.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
 
     return result.embedding;
   } catch (error) {
@@ -56,15 +56,15 @@ Assistant:`;
       temperature: 0.1,
     };
 
-    const params = {
+    const command = new InvokeModelCommand({
       modelId,
       body: JSON.stringify(payload),
       contentType: "application/json",
       accept: "application/json",
-    };
+    });
 
-    const response = await bedrock.invokeModel(params).promise();
-    const result = JSON.parse(response.body.toString());
+    const response = await bedrock.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
 
     return result.completion || result.generated_text || "";
   } catch (error) {

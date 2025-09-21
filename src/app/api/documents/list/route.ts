@@ -30,8 +30,10 @@ export async function GET(request: NextRequest) {
     const formattedDocuments = documents.map((doc) => ({
       id: doc.id,
       title: doc.title,
-      isProcessed: doc.chunks.length > 0,
+      status: doc.status,
+      isProcessed: doc.status === "COMPLETED",
       chunkCount: doc.chunks.length,
+      processingError: doc.processingError,
       createdAt: doc.createdAt.toISOString(),
     }));
 

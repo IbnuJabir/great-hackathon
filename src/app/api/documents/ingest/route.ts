@@ -35,21 +35,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if document is already processed
-    const existingChunks = await prisma.documentChunk.findFirst({
-      where: { documentId },
-    });
-
-    if (existingChunks) {
+    // Check if document is already processed successfully
+    if (document.status === "COMPLETED") {
       return NextResponse.json(
-        { error: "Document already processed" },
+        { error: "Document already processed successfully" },
         { status: 400 }
       );
     }
 
+    // Allow retrying failed or pending documents
+    if (document.status === "PROCESSING") {
+      return NextResponse.json(
+        { error: "Document is currently being processed" },
+        { status: 400 }
+      );
+    }
+
+    // Clear existing chunks if retrying a failed document
+    if (document.status === "FAILED") {
+      await prisma.documentChunk.deleteMany({
+        where: { documentId },
+      });
+    }
+
+    console.log(`Starting async processing for document ${documentId}`);
+
     // Process document asynchronously
     processDocument(documentId).catch((error) => {
       console.error(`Failed to process document ${documentId}:`, error);
+      console.error("Full error stack:", error.stack);
     });
 
     return NextResponse.json({

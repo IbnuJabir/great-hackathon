@@ -3,13 +3,18 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Clock, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileText, Clock, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
+
+type DocumentStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 
 interface Document {
   id: string;
   title: string;
+  status: DocumentStatus;
   isProcessed: boolean;
   chunkCount: number;
+  processingError?: string | null;
   createdAt: string;
 }
 
@@ -20,14 +25,17 @@ interface DocumentListProps {
 export function DocumentList({ refreshTrigger }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchDocuments();
   }, [refreshTrigger]);
 
-  // Auto-refresh every 5 seconds if there are processing documents
+  // Auto-refresh every 5 seconds if there are processing/pending documents
   useEffect(() => {
-    const hasProcessingDocs = documents.some(doc => !doc.isProcessed);
+    const hasProcessingDocs = documents.some(doc =>
+      doc.status === "PROCESSING" || doc.status === "PENDING"
+    );
 
     if (hasProcessingDocs) {
       const interval = setInterval(fetchDocuments, 5000); // 5 seconds
@@ -54,6 +62,37 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
     }
   };
 
+  const retryProcessing = async (documentId: string) => {
+    try {
+      setRetryingIds(prev => new Set(prev).add(documentId));
+
+      const response = await fetch("/api/documents/ingest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ documentId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to retry processing");
+      }
+
+      // Refresh document list
+      fetchDocuments();
+    } catch (error) {
+      console.error("Error retrying document processing:", error);
+      alert(`Failed to retry processing: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setRetryingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(documentId);
+        return newSet;
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -76,6 +115,64 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
     );
   }
 
+  const getStatusBadge = (doc: Document) => {
+    const isRetrying = retryingIds.has(doc.id);
+
+    switch (doc.status) {
+      case "COMPLETED":
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Ready ({doc.chunkCount} chunks)
+          </Badge>
+        );
+      case "PROCESSING":
+        return (
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Processing...
+          </Badge>
+        );
+      case "PENDING":
+        return (
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending...
+          </Badge>
+        );
+      case "FAILED":
+        return (
+          <div className="flex items-center space-x-2">
+            <Badge variant="destructive">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              Failed
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => retryProcessing(doc.id)}
+              disabled={isRetrying}
+              className="h-7"
+            >
+              {isRetrying ? (
+                <Clock className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3 w-3 mr-1" />
+              )}
+              {isRetrying ? "Retrying..." : "Retry"}
+            </Button>
+          </div>
+        );
+      default:
+        return (
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Unknown
+          </Badge>
+        );
+    }
+  };
+
   return (
     <div className="space-y-4">
       {documents.map((doc) => (
@@ -88,20 +185,15 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
                 <p className="text-sm text-gray-500">
                   Uploaded {new Date(doc.createdAt).toLocaleDateString()}
                 </p>
+                {doc.status === "FAILED" && doc.processingError && (
+                  <p className="text-sm text-red-600 mt-1">
+                    Error: {doc.processingError}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {doc.isProcessed ? (
-                <Badge variant="default" className="bg-green-100 text-green-800">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Ready ({doc.chunkCount} chunks)
-                </Badge>
-              ) : (
-                <Badge variant="secondary">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Processing...
-                </Badge>
-              )}
+              {getStatusBadge(doc)}
             </div>
           </div>
         </Card>

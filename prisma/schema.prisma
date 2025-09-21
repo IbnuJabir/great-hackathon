@@ -69,17 +69,26 @@ model Verification {
 }
 
 model Document {
-  id         String          @id @default(cuid())
-  title      String
-  s3Key      String          @unique
-  uploaderId String
-  metadata   Json?
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  chunks     DocumentChunk[]
-  uploader   User            @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  title           String
+  s3Key           String          @unique
+  uploaderId      String
+  metadata        Json?
+  status          DocumentStatus  @default(PENDING)
+  processingError String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  chunks          DocumentChunk[]
+  uploader        User            @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
   @@map("documents")
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 model DocumentChunk {
