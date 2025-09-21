@@ -21,7 +21,8 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
 
-  // tRPC mutations
+  // tRPC mutations and utils
+  const utils = trpc.useUtils();
   const getUploadUrl = trpc.documents.getUploadUrl.useMutation();
   const processDocument = trpc.documents.processDocument.useMutation();
 
@@ -101,6 +102,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         setUploadProgress("Starting processing...");
         await processDocument.mutateAsync({ documentId });
 
+        // Immediately invalidate documents cache for instant UI update
+        await utils.documents.listDocuments.invalidate();
+
         setUploadProgress("Upload complete! Processing in background...");
         onUploadComplete(documentId);
 
@@ -129,7 +133,7 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         }, 2000);
       }
     },
-    [onUploadComplete, extractPdfText, getUploadUrl, processDocument]
+    [onUploadComplete, extractPdfText, getUploadUrl, processDocument, utils]
   );
 
   const handleDrop = useCallback(

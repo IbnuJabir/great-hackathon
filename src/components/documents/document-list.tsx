@@ -27,22 +27,34 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   // tRPC queries and mutations
+  const utils = trpc.useUtils();
   const {
     data: documentsData,
     isLoading: loading,
     refetch: fetchDocuments,
   } = trpc.documents.listDocuments.useQuery(undefined, {
     refetchInterval: (data) => {
-      // Auto-refresh every 5 seconds if there are processing/pending documents
+      // Auto-refresh every 1 second if there are processing/pending documents
       const hasProcessingDocs = data?.documents?.some(doc =>
         doc.status === "PROCESSING" || doc.status === "PENDING"
       );
-      return hasProcessingDocs ? 5000 : false;
+      return hasProcessingDocs ? 1000 : 10000; // 1 second for processing, 10 seconds for idle
     },
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    staleTime: 0, // Always consider data stale for immediate updates
   });
 
   const processDocument = trpc.documents.processDocument.useMutation({
     onSuccess: () => {
+      // Immediately invalidate and refetch the documents list
+      utils.documents.listDocuments.invalidate();
+      fetchDocuments();
+    },
+    onError: () => {
+      // Refetch on error to ensure we have correct status
+      utils.documents.listDocuments.invalidate();
       fetchDocuments();
     },
   });
@@ -50,14 +62,22 @@ export function DocumentList({ refreshTrigger }: DocumentListProps) {
   const documents = documentsData?.documents || [];
 
   useEffect(() => {
-    fetchDocuments();
-  }, [refreshTrigger, fetchDocuments]);
+    if (refreshTrigger) {
+      // Force immediate cache invalidation and refetch when triggered
+      utils.documents.listDocuments.invalidate();
+      fetchDocuments();
+    }
+  }, [refreshTrigger, fetchDocuments, utils]);
 
   const retryProcessing = async (documentId: string) => {
     try {
       setRetryingIds(prev => new Set(prev).add(documentId));
 
       await processDocument.mutateAsync({ documentId });
+
+      // Force immediate refresh after retry
+      utils.documents.listDocuments.invalidate();
+      fetchDocuments();
     } catch (error) {
       console.error("Error retrying document processing:", error);
       alert(`Failed to retry processing: ${error instanceof Error ? error.message : "Unknown error"}`);
