@@ -2,23 +2,17 @@ import { TranscribeClient, StartTranscriptionJobCommand, GetTranscriptionJobComm
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 
-// Configure AWS clients
+// Configure AWS clients to use SSO profile or default credential chain
 const transcribeClient = new TranscribeClient({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: process.env.AWS_ACCESS_KEY_ID ? {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    sessionToken: process.env.AWS_SESSION_TOKEN,
-  } : undefined,
+  // Remove explicit credentials to use default credential chain (SSO profile)
+  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
 });
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: process.env.AWS_ACCESS_KEY_ID ? {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    sessionToken: process.env.AWS_SESSION_TOKEN,
-  } : undefined,
+  // Remove explicit credentials to use default credential chain (SSO profile)
+  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
 });
 
 interface TranscriptionResult {

@@ -1,13 +1,10 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
-// Configure AWS SDK v3 for Bedrock
+// Configure AWS SDK v3 for Bedrock to use SSO profile or default credential chain
 const bedrock = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: process.env.AWS_ACCESS_KEY_ID ? {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    sessionToken: process.env.AWS_SESSION_TOKEN,
-  } : undefined, // Use default credential chain if not provided
+  // Remove explicit credentials to use default credential chain (SSO profile)
+  // The AWS SDK will automatically use the profile specified in AWS_PROFILE env var
 });
 
 export async function generateEmbedding(text: string): Promise<number[]> {
